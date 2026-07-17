@@ -1,0 +1,35 @@
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+*.egg-info/
+
+# Generated or externally supplied data
+data/raw/*
+!data/raw/manual/
+!data/raw/manual/.gitkeep
+!data/raw/tisseo/
+!data/raw/tisseo/.gitkeep
+data/bronze/*
+!data/bronze/.gitkeep
+data/silver/*
+!data/silver/.gitkeep
+data/gold/*
+!data/gold/.gitkeep
+data/reports/*
+!data/reports/.gitkeep
+# Generated chart files are covered by data/reports/*; keep the rule explicit for clarity.
+data/reports/figures/*
+data/raw_realtime/*
+!data/raw_realtime/.gitkeep
+data/realtime/*
+!data/realtime/.gitkeep
+data/realtime_gold/*
+!data/realtime_gold/.gitkeep
+data/serving/*
+!data/serving/.gitkeep
+*.pb
+*.zip
+*.duckdb
+*.duckdb.wal
+*.db
