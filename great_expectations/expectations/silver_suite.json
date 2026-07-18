@@ -1,0 +1,17 @@
+{
+  "expectation_suite_name": "silver_suite",
+  "meta": {
+    "description": "Silver GTFS validation rules for routes, trips, stops, stop_times, and calendars."
+  },
+  "expectations": [
+    {"table": "routes", "expectation_type": "expect_column_values_to_not_be_null", "kwargs": {"column": "route_id"}},
+    {"table": "routes", "expectation_type": "expect_column_values_to_be_unique", "kwargs": {"column": "route_id"}},
+    {"table": "trips", "expectation_type": "expect_column_values_to_not_be_null", "kwargs": {"column": "trip_id"}},
+    {"table": "trips", "expectation_type": "expect_column_pair_values_to_exist", "kwargs": {"column": "route_id", "reference_table": "routes", "reference_column": "route_id"}},
+    {"table": "stop_times", "expectation_type": "expect_column_pair_values_to_exist", "kwargs": {"column": "trip_id", "reference_table": "trips", "reference_column": "trip_id"}},
+    {"table": "stop_times", "expectation_type": "expect_column_pair_values_to_exist", "kwargs": {"column": "stop_id", "reference_table": "stops", "reference_column": "stop_id"}},
+    {"table": "stops", "expectation_type": "expect_column_values_to_be_between", "kwargs": {"column": "stop_lat", "min_value": -90, "max_value": 90}},
+    {"table": "stops", "expectation_type": "expect_column_values_to_be_between", "kwargs": {"column": "stop_lon", "min_value": -180, "max_value": 180}}
+  ]
+}
+

@@ -7,6 +7,8 @@ from typing import Any
 
 import duckdb
 
+from mobility_control_tower.observability import DUCKDB_QUERY_DURATION
+
 
 def validate_database_path(db_path: str | Path) -> Path:
     path = Path(db_path)
@@ -60,8 +62,8 @@ def query_view(db_path: Path, view_name: str, limit: int, filters: dict[str, Any
     params.append(limit)
     with _connect(db_path) as connection:
         try:
-            rows = connection.execute(f"SELECT * FROM {view_name}{where_sql} LIMIT ?", params).fetchdf()
+            with DUCKDB_QUERY_DURATION.labels(query=view_name).time():
+                rows = connection.execute(f"SELECT * FROM {view_name}{where_sql} LIMIT ?", params).fetchdf()
         except duckdb.CatalogException as exc:
             raise ValueError(f"View '{view_name}' is not available in this serving database") from exc
     return rows.where(rows.notna(), None).to_dict("records")
-

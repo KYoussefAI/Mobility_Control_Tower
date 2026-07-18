@@ -1,196 +1,257 @@
 # Mobility Control Tower
 
-Local Data Engineering platform for public transport data.
+Portfolio-quality data engineering platform for public transport analytics.
 
-Mobility Control Tower processes Tisseo Toulouse GTFS Schedule data and bounded GTFS-Realtime snapshots into validated, queryable, teacher-friendly data products. It is a local academic MVP, not an enterprise monitoring platform.
+Mobility Control Tower turns GTFS static schedules and GTFS-Realtime snapshots into validated, historical, queryable mobility analytics. It is built as a local-first platform with production-inspired engineering: orchestration, analytics engineering, validation, observability, Docker, CI, and optional cloud-ready storage.
 
 ## Architecture Overview
 
 ```mermaid
 flowchart LR
-    A[Official GTFS Schedule] --> B[raw]
-    B --> C[bronze]
-    C --> D[silver]
-    D --> E[gold static KPIs]
-    E --> F[DuckDB serving]
-    F --> G[FastAPI read-only API]
-    G --> H[Streamlit local dashboard]
-
-    RT[GTFS-Realtime snapshot] --> RTRaw[raw feed.pb]
-    RTRaw --> RTParsed[parsed realtime CSV]
-    RTParsed --> RTGold[realtime snapshot KPIs]
-    RTGold --> F
+    GTFS[GTFS Static] --> AF[Airflow]
+    GRT[GTFS-Realtime] --> AF
+    AF --> CLI[CLI]
+    CLI --> RAW[Raw]
+    RAW --> BRONZE[Bronze]
+    BRONZE --> SILVER[Silver]
+    SILVER --> DBT[dbt]
+    GRT --> PARQUET[Historical Parquet]
+    PARQUET --> DBT
+    DBT --> GOLD[Gold Analytics]
+    GOLD --> GE[Great Expectations]
+    GE --> DUCK[DuckDB]
+    DUCK --> API[FastAPI /v1]
+    API --> DASH[Streamlit]
+    API --> PROM[Prometheus /pipeline/metrics]
+    PROM --> GRAF[Grafana dashboard JSON]
+    RAW -. optional .-> S3[(Amazon S3)]
+    PARQUET -. optional .-> S3
 ```
 
-## Data Source
+See `docs/architecture/portfolio_architecture.md` for the polished portfolio diagram.
 
-- Static GTFS: Tisseo Toulouse public transport schedule.
-- GTFS-Realtime: one saved snapshot at a time.
-- Licence: ODbL for the static source.
-- Official dataset page: https://transport.data.gouv.fr/datasets/tisseo-reseau-transport-urbain-toulousain
+## Features
 
-## Implemented Features
+- Static GTFS ingestion with immutable raw preservation.
+- GTFS-Realtime historical polling and protobuf parsing.
+- Raw, Bronze, Silver, Gold medallion architecture.
+- Partitioned Parquet historical storage.
+- dbt staging, intermediate, and mart models after Silver.
+- Great Expectations suites and Data Docs.
+- DuckDB serving layer with efficient Parquet-backed views.
+- FastAPI read-only API with `/v1/` versioned routes.
+- Streamlit dashboard with operational, historical, and data-quality pages.
+- Apache Airflow DAGs that call the CLI.
+- Prometheus metrics and Grafana dashboard JSON.
+- Optional local/S3 storage abstraction via boto3.
+- Multi-city configuration: Tisseo Toulouse and STAR Rennes.
+- Performance benchmark command and Markdown reports.
+- Docker, Docker Compose, GitHub Actions, pre-commit, Ruff, Black, isort, MyPy, coverage.
 
-- Static GTFS ingestion with immutable raw ZIP preservation.
-- Metadata capture with SHA256 checksums.
-- Bronze extraction and silver cleaned GTFS tables.
-- GTFS quality validation reports.
-- Gold static planning KPIs and charts.
-- GTFS-Realtime snapshot fetch, raw protobuf preservation, and parsing.
-- Static/live identifier compatibility checks.
-- Realtime snapshot delay indicators.
-- Local DuckDB serving database.
-- Read-only FastAPI API.
-- Read-only Streamlit dashboard.
-- Teacher-facing reports and documentation.
-- Pytest coverage for core behavior.
+## Screenshots
 
-## Current Pipeline
+Placeholders for portfolio media:
 
-Static:
+- `docs/screenshots/dashboard-operational.png`
+- `docs/screenshots/dashboard-history.png`
+- `docs/screenshots/dashboard-quality.png`
+- `docs/screenshots/airflow-dags.png`
+- `docs/screenshots/demo.gif`
 
-```text
-GTFS ZIP -> raw -> bronze -> silver -> validation -> gold KPIs -> charts/reports
+## Tech Stack
+
+Python 3.10, Pandas, PyArrow, DuckDB, FastAPI, Streamlit, APScheduler, Airflow, dbt Core, dbt-duckdb, Great Expectations, Prometheus client, boto3, Docker, pytest, coverage.py, Ruff, Black, isort, MyPy.
+
+## Quick Start
+
+```bash
+cp .env.example .env
+docker compose up --build
 ```
 
-Realtime snapshot:
+Local URLs:
 
-```text
-GTFS-RT feed.pb -> raw_realtime -> realtime parsed CSV -> realtime_gold KPIs -> charts/reports
-```
+- API: `http://localhost:8000`
+- OpenAPI: `http://localhost:8000/docs`
+- Dashboard: `http://localhost:8501`
+- Airflow: `http://localhost:8080`
+- Prometheus metrics: `http://localhost:8000/pipeline/metrics`
 
-Serving and demo:
-
-```text
-gold + realtime_gold -> DuckDB -> FastAPI -> Streamlit dashboard
-```
-
-## Quickstart
+## Local Development
 
 ```bash
 python -m venv .venv
 source .venv/bin/activate
-python -m pip install -e '.[dev]'
-pytest
+python -m pip install --upgrade pip
+python -m pip install -e '.[dev,quality]'
+PYTHONPATH=src python -m pytest
 ```
 
-## Full Workflow
+## Docker
 
-Replace placeholders with the run IDs printed by the commands.
+The Docker image is multi-stage, non-root, healthchecked, and supports CLI, FastAPI, Streamlit, and Airflow commands.
 
 ```bash
-python -m mobility_control_tower.cli ingest-gtfs --source tisseo --download
-python -m mobility_control_tower.cli profile-gtfs --raw-run data/raw/tisseo/<static_run_id>
-python -m mobility_control_tower.cli build-bronze --raw-run data/raw/tisseo/<static_run_id>
-python -m mobility_control_tower.cli build-silver --bronze-run data/bronze/tisseo/<static_run_id>
-python -m mobility_control_tower.cli validate-gtfs --silver-run data/silver/tisseo/<static_run_id>
-python -m mobility_control_tower.cli build-gold --silver-run data/silver/tisseo/<static_run_id>
-python -m mobility_control_tower.cli generate-static-charts --gold-run data/gold/tisseo/<static_run_id>
-python -m mobility_control_tower.cli generate-demo-report --gold-run data/gold/tisseo/<static_run_id>
-python -m mobility_control_tower.cli generate-static-mvp-report --gold-run data/gold/tisseo/<static_run_id>
-
-python -m mobility_control_tower.cli fetch-gtfs-rt --source tisseo --feed-type trip_updates
-python -m mobility_control_tower.cli parse-gtfs-rt --raw-rt-run data/raw_realtime/tisseo/trip_updates/<rt_run_id>
-python -m mobility_control_tower.cli report-gtfs-rt --rt-run data/realtime/tisseo/trip_updates/<rt_run_id>
-python -m mobility_control_tower.cli check-rt-compatibility --silver-run data/silver/tisseo/<static_run_id> --rt-run data/realtime/tisseo/trip_updates/<rt_run_id>
-python -m mobility_control_tower.cli build-rt-gold --silver-run data/silver/tisseo/<static_run_id> --rt-run data/realtime/tisseo/trip_updates/<rt_run_id>
-python -m mobility_control_tower.cli generate-rt-charts --rt-gold-run data/realtime_gold/tisseo/trip_updates/<rt_run_id>
-python -m mobility_control_tower.cli generate-rt-snapshot-report --rt-gold-run data/realtime_gold/tisseo/trip_updates/<rt_run_id>
-
-python -m mobility_control_tower.cli build-serving-db --gold-run data/gold/tisseo/<static_run_id> --rt-gold-run data/realtime_gold/tisseo/trip_updates/<rt_run_id>
-python -m mobility_control_tower.cli generate-serving-report --serving-run data/serving/tisseo/<static_run_id>
+docker compose up --build
+docker compose run --rm api cli --help
 ```
 
-## API Usage
+Compose services:
 
-Start the local read-only API:
+- `api`
+- `dashboard`
+- `airflow-init`
+- `airflow-webserver`
+- `airflow-scheduler`
+
+## Airflow
+
+Airflow orchestrates the CLI instead of replacing it.
+
+- `daily_static_pipeline`: ingestion, Bronze, Silver, dbt, Great Expectations, reports, serving.
+- `realtime_collection`: one realtime poll, dbt historical marts, Great Expectations, serving refresh.
 
 ```bash
-python -m mobility_control_tower.cli serve-api \
-  --db data/serving/tisseo/<static_run_id>/mobility_control_tower.duckdb \
-  --host 127.0.0.1 \
-  --port 8000
+docker compose exec airflow-webserver airflow dags trigger daily_static_pipeline
+docker compose exec airflow-webserver airflow dags trigger realtime_collection
 ```
 
-Example URLs:
+## API
 
-- `http://127.0.0.1:8000/health`
-- `http://127.0.0.1:8000/metadata`
-- `http://127.0.0.1:8000/static/top-routes?limit=5`
-- `http://127.0.0.1:8000/realtime/feed-health`
-- `http://127.0.0.1:8000/docs`
+Versioned routes are available under `/v1/`; unversioned compatibility routes remain.
 
-Generate the API report:
+Examples:
 
-```bash
-python -m mobility_control_tower.cli generate-api-report \
-  --db data/serving/tisseo/<static_run_id>/mobility_control_tower.duckdb
-```
+- `/v1/health`
+- `/v1/metadata`
+- `/v1/static/top-routes`
+- `/v1/history/routes`
+- `/v1/quality/summary`
+- `/pipeline/metrics`
 
 ## Dashboard Usage
 
-Start the API first, then run:
+The Streamlit dashboard includes:
+
+- Operational MVP
+- Historical Analytics
+- Data Quality
+
+## dbt
+
+dbt starts after Python Silver and historical Parquet:
 
 ```bash
-streamlit run src/mobility_control_tower/dashboard/app.py
+PYTHONPATH=src python -m mobility_control_tower.cli run-dbt \
+  --silver-run data/silver/tisseo/<run_id> \
+  --history-run data/realtime_history/tisseo/trip_updates
+
+PYTHONPATH=src python -m mobility_control_tower.cli test-dbt
+PYTHONPATH=src python -m mobility_control_tower.cli generate-dbt-docs
 ```
 
-Optional CLI helper:
+## Great Expectations
 
 ```bash
-python -m mobility_control_tower.cli serve-dashboard --api-url http://127.0.0.1:8000
+PYTHONPATH=src python -m mobility_control_tower.cli run-ge-validation \
+  --suite all \
+  --silver-run data/silver/tisseo/<run_id> \
+  --gold-run data/dbt_gold/tisseo/<dbt_run_id> \
+  --history-run data/realtime_history/tisseo/trip_updates
 ```
 
-The dashboard is read-only and consumes the FastAPI endpoints. It shows static planning KPIs, GTFS-Realtime snapshot indicators, compatibility, and limitations.
+## Observability
 
-## Generated Reports
+Prometheus metrics are exposed at:
 
-Reports are generated under `data/reports/`:
+```text
+/pipeline/metrics
+```
 
-- GTFS profile report.
-- GTFS quality report.
-- Static demo report.
-- Static MVP evidence report.
-- GTFS-Realtime snapshot report.
-- Realtime compatibility report.
-- Realtime snapshot KPI report.
-- Serving layer report.
-- API report.
-- Final project report.
+Metrics include pipeline duration, successes, failures, rows processed, API requests, historical polls, feed freshness, and DuckDB query duration.
 
-Generate the final report:
+Grafana dashboard JSON:
+
+```text
+grafana/mobility-control-tower-dashboard.json
+```
+
+## Cloud-Ready Storage
+
+Local mode remains the default. Optional S3 storage is selected with settings:
 
 ```bash
-python -m mobility_control_tower.cli generate-final-report \
-  --serving-run data/serving/tisseo/<static_run_id>
+MCT_STORAGE_BACKEND=local
+MCT_STORAGE_BACKEND=s3
+MCT_S3_BUCKET=<bucket>
+MCT_S3_PREFIX=mobility-control-tower
 ```
 
-## Testing
+The abstraction is implemented in `src/mobility_control_tower/storage.py`.
+
+## Multi-City Support
+
+Configured sources:
+
+- `tisseo`: Toulouse Tisseo
+- `star_rennes`: Rennes STAR
+
+Each source has independent config, storage roots, serving paths, and report paths through the existing CLI arguments.
+
+## Performance Benchmarks
 
 ```bash
-pytest
+PYTHONPATH=src python -m mobility_control_tower.cli run-benchmarks \
+  --silver-run data/silver/tisseo/<run_id> \
+  --gold-run data/gold/tisseo/<run_id> \
+  --history-run data/realtime_history/tisseo/trip_updates \
+  --db data/serving/tisseo/<run_id>/mobility_control_tower.duckdb
 ```
 
-Tests use fake GTFS, fake GTFS-Realtime protobuf messages, temporary DuckDB databases, and mocked API responses. They do not require internet access.
+Reports are written to `data/benchmarks/`.
 
-## Limitations
+## Testing And Quality
 
-- Local academic MVP, not production software.
-- GTFS-Realtime is processed as snapshots, not streaming.
-- No dashboard writes, authentication, deployment, Docker, cloud, Kafka, Spark, Airflow, PostgreSQL, ML, or RAG.
-- Delay indicators from one snapshot are not route reliability metrics.
-- Trip-level real-time compatibility may be imperfect.
+```bash
+ruff check .
+black --check .
+isort --check-only .
+mypy src
+coverage run -m pytest
+coverage html
+```
 
-## Future Roadmap
+## CI
 
-- Collect repeated GTFS-Realtime snapshots.
-- Improve trip-level matching.
-- Add a richer dashboard once the API contract is stable.
-- Add scheduling/orchestration only after the local MVP is accepted.
-- Consider PostgreSQL or production deployment only in a later phase.
+GitHub Actions run on push and pull request:
+
+- dependency installation
+- Ruff
+- Black
+- isort
+- MyPy
+- pytest with coverage
+- Docker build
+
+## Documentation
+
+- `docs/portfolio_case_study.md`
+- `docs/interview_questions.md`
+- `docs/settings.md`
+- `docs/airflow.md`
+- `docs/dbt.md`
+- `docs/great_expectations.md`
+- `docs/historical_collection.md`
+- `docs/architecture/`
+
+## Roadmap
+
+- Native S3 writes in every data-producing module.
+- Real Prometheus and Grafana Compose profile.
+- More French networks and city comparison dashboards.
+- API authentication and rate limiting.
+- More exhaustive CLI and dashboard coverage.
 
 ## Academic Positioning
 
-This project demonstrates Data Engineering fundamentals: ingestion, raw preservation, layered transformations, validation, KPI design, realtime snapshot parsing, local serving, API exposure, dashboard consumption, testing, and documentation.
-
-It is intentionally scoped so a student can explain every layer clearly during a PFA presentation.
+The project remains explainable as a data engineering academic MVP while presenting production-inspired practices: reproducibility, orchestration, validation, observability, typed configuration, cloud-ready interfaces, CI, and documentation.

@@ -1,0 +1,105 @@
+version: 2
+
+models:
+  - name: stg_routes
+    description: Clean route dimension loaded from Python Silver GTFS.
+    columns:
+      - name: route_id
+        description: GTFS route identifier.
+        tests: [not_null, unique]
+      - name: route_short_name
+        description: Passenger-facing short route label.
+      - name: route_long_name
+        description: Passenger-facing long route label.
+      - name: route_type
+        description: GTFS route type code.
+        tests:
+          - accepted_values:
+              values: ["0", "1", "2", "3", "4", "5", "6", "7"]
+  - name: stg_trips
+    description: Clean trip facts loaded from Python Silver GTFS.
+    columns:
+      - name: trip_id
+        description: GTFS trip identifier.
+        tests: [not_null, unique]
+      - name: route_id
+        description: Route owning the trip.
+        tests:
+          - not_null
+          - relationships:
+              to: ref('stg_routes')
+              field: route_id
+      - name: service_id
+        description: Calendar service identifier.
+        tests: [not_null]
+  - name: stg_stop_times
+    description: Stop-time facts loaded from Python Silver GTFS.
+    columns:
+      - name: trip_id
+        description: Trip identifier.
+        tests:
+          - not_null
+          - relationships:
+              to: ref('stg_trips')
+              field: trip_id
+      - name: stop_id
+        description: Stop identifier.
+        tests:
+          - not_null
+          - relationships:
+              to: ref('stg_stops')
+              field: stop_id
+      - name: stop_sequence
+        description: Sequence of stop within trip.
+      - name: departure_time
+        description: Scheduled departure time, allowing GTFS service-day hours above 23.
+      - name: departure_time_seconds
+        description: Departure time converted to service-day seconds.
+  - name: stg_stops
+    description: Clean stop dimension loaded from Python Silver GTFS.
+    columns:
+      - name: stop_id
+        description: GTFS stop identifier.
+        tests: [not_null, unique]
+      - name: stop_name
+        description: Passenger-facing stop name.
+      - name: stop_lat
+        description: Stop latitude.
+      - name: stop_lon
+        description: Stop longitude.
+  - name: stg_calendar
+    description: Regular service calendar loaded from Python Silver GTFS.
+  - name: stg_calendar_dates
+    description: Service calendar exceptions loaded from Python Silver GTFS.
+  - name: stg_history_stop_time_updates
+    description: Historical GTFS-Realtime stop-time update observations from Parquet.
+    columns:
+      - name: snapshot_timestamp
+        description: Immutable snapshot id assigned at collection time.
+        tests: [not_null]
+      - name: collection_time
+        description: UTC time when the feed was collected.
+        tests: [not_null]
+      - name: feed_age_seconds
+        description: Difference between collection time and feed header timestamp.
+      - name: trip_id
+        description: Realtime trip identifier.
+      - name: route_id
+        description: Realtime route identifier.
+      - name: stop_id
+        description: Realtime stop identifier.
+      - name: delay_seconds
+        description: Arrival delay if present, otherwise departure delay.
+  - name: stg_history_feed_summary
+    description: Historical feed-level metadata from preserved GTFS-Realtime snapshots.
+    columns:
+      - name: snapshot_timestamp
+        description: Immutable snapshot id assigned at collection time.
+        tests: [not_null, unique]
+      - name: feed_age_seconds
+        description: Feed freshness in seconds.
+      - name: parsed_entity_count
+        description: Number of parsed feed entities.
+        tests:
+          - non_negative
+

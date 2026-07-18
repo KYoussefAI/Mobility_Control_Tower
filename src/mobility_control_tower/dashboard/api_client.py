@@ -18,6 +18,12 @@ ENDPOINTS = {
     "rt_compatibility": "/realtime/compatibility",
     "rt_top_delayed_routes": "/realtime/top-delayed-routes",
     "rt_top_delayed_stops": "/realtime/top-delayed-stops",
+    "history_routes": "/history/routes",
+    "history_stops": "/history/stops",
+    "history_feed_health": "/history/feed-health",
+    "history_delay_trend": "/history/delay-trend",
+    "history_summary": "/history/summary",
+    "quality_summary": "/quality/summary",
 }
 
 
@@ -67,5 +73,10 @@ def fetch_dashboard_data(api_url: str) -> dict[str, dict[str, Any]]:
         "rt_compatibility": get_json(api_url, ENDPOINTS["rt_compatibility"]),
         "rt_top_delayed_routes": get_json(api_url, ENDPOINTS["rt_top_delayed_routes"], {"limit": 10}),
         "rt_top_delayed_stops": get_json(api_url, ENDPOINTS["rt_top_delayed_stops"], {"limit": 10}),
+        "history_routes": get_json(api_url, ENDPOINTS["history_routes"], {"limit": 20}),
+        "history_stops": get_json(api_url, ENDPOINTS["history_stops"], {"limit": 20}),
+        "history_feed_health": get_json(api_url, ENDPOINTS["history_feed_health"], {"limit": 100}),
+        "history_delay_trend": get_json(api_url, ENDPOINTS["history_delay_trend"], {"limit": 100}),
+        "history_summary": get_json(api_url, ENDPOINTS["history_summary"], {"limit": 100}),
+        "quality_summary": get_json(api_url, ENDPOINTS["quality_summary"]),
     }
-

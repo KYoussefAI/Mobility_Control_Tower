@@ -1,0 +1,17 @@
+version: 2
+
+sources:
+  - name: realtime_history
+    description: External partitioned GTFS-Realtime Parquet archive produced by the Python collector.
+    freshness:
+      warn_after:
+        count: 10
+        period: minute
+      error_after:
+        count: 60
+        period: minute
+    loaded_at_field: collection_time
+    tables:
+      - name: feed_summary
+        description: Feed-level metadata for each preserved realtime snapshot.
+

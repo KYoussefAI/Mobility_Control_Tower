@@ -1,0 +1,30 @@
+version: 2
+
+models:
+  - name: int_service_dates
+    description: Expanded GTFS service dates after applying calendar exceptions.
+    columns:
+      - name: service_id
+        description: GTFS service id.
+        tests: [not_null]
+      - name: service_date
+        description: Active service date in ISO format.
+        tests: [not_null]
+  - name: int_trip_base
+    description: Trip facts enriched with route labels and route type.
+    columns:
+      - name: trip_id
+        description: GTFS trip id.
+        tests: [not_null, unique]
+      - name: route_id
+        description: GTFS route id.
+        tests: [not_null]
+  - name: int_first_trip_departures
+    description: First stop departure per trip used to count route hourly departures.
+    columns:
+      - name: trip_id
+        description: GTFS trip id.
+        tests: [not_null, unique]
+      - name: departure_hour
+        description: Service-day departure hour.
+

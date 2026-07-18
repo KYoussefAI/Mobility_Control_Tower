@@ -1,0 +1,24 @@
+config_version: 3.0
+datasources: {}
+stores:
+  expectations_store:
+    class_name: ExpectationsStore
+    store_backend:
+      class_name: TupleFilesystemStoreBackend
+      base_directory: expectations/
+  validations_store:
+    class_name: ValidationsStore
+    store_backend:
+      class_name: TupleFilesystemStoreBackend
+      base_directory: validation_results/
+data_docs_sites:
+  local_site:
+    class_name: SiteBuilder
+    store_backend:
+      class_name: TupleFilesystemStoreBackend
+      base_directory: data_docs/local_site/
+    site_index_builder:
+      class_name: DefaultSiteIndexBuilder
+anonymous_usage_statistics:
+  enabled: false
+

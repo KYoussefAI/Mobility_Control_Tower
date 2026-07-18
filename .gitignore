@@ -2,6 +2,11 @@
 __pycache__/
 *.py[cod]
 .pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+coverage.xml
 *.egg-info/
 
 # Generated or externally supplied data
@@ -28,6 +33,26 @@ data/realtime_gold/*
 !data/realtime_gold/.gitkeep
 data/serving/*
 !data/serving/.gitkeep
+data/realtime_history/*
+!data/realtime_history/.gitkeep
+data/history_gold/*
+!data/history_gold/.gitkeep
+data/dbt_gold/*
+data/pipeline_runs/*
+!data/pipeline_runs/.gitkeep
+data/quality/*
+!data/quality/.gitkeep
+data/benchmarks/*
+!data/benchmarks/.gitkeep
+airflow/logs/*
+!airflow/logs/.gitkeep
+airflow/airflow.db
+airflow/airflow-webserver.pid
+dbt/target/*
+great_expectations/validation_results/*
+!great_expectations/validation_results/.gitkeep
+great_expectations/data_docs/local_site/*
+!great_expectations/data_docs/local_site/.gitkeep
 *.pb
 *.zip
 *.duckdb

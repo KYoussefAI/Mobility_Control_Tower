@@ -39,8 +39,61 @@ def main() -> None:
 
     api_url = st.sidebar.text_input("API URL", value=os.environ.get("MCT_API_URL", DEFAULT_API_URL))
     st.sidebar.markdown("Start the API before using the dashboard.")
+    page = st.sidebar.radio("Page", ["Operational MVP", "Historical Analytics", "Data Quality"])
 
     data = fetch_dashboard_data(api_url)
+
+    if page == "Historical Analytics":
+        st.header("Historical Analytics")
+        summary = _table("Collection summary", data["history_summary"])
+        trend = _table("Delay evolution by hour", data["history_delay_trend"])
+        feed = _table("Feed freshness history", data["history_feed_health"])
+        routes = _table("Top delayed routes", data["history_routes"])
+
+        if not trend.empty and {"collection_date", "collection_hour", "average_delay_seconds"}.issubset(trend.columns):
+            trend = trend.copy()
+            trend["period"] = trend["collection_date"].astype(str) + " " + trend["collection_hour"].astype(str) + ":00"
+            st.line_chart(trend.set_index("period")["average_delay_seconds"])
+        if not feed.empty and {"collection_time", "feed_age_seconds"}.issubset(feed.columns):
+            st.line_chart(feed.set_index("collection_time")["feed_age_seconds"])
+        if not summary.empty and {"collection_date", "updates_collected"}.issubset(summary.columns):
+            st.bar_chart(summary.set_index("collection_date")["updates_collected"])
+        if not routes.empty and {"route_id", "average_delay_seconds"}.issubset(routes.columns):
+            label = "route_short_name" if "route_short_name" in routes.columns else "route_id"
+            st.bar_chart(routes.set_index(label)["average_delay_seconds"])
+
+        stops = _table("Top delayed stops", data["history_stops"])
+        if not stops.empty and {"stop_id", "average_delay_seconds"}.issubset(stops.columns):
+            st.bar_chart(stops.set_index("stop_id")["average_delay_seconds"])
+        return
+
+    if page == "Data Quality":
+        st.header("Data Quality")
+        payload = data["quality_summary"]
+        if not payload.get("ok", True):
+            st.warning(payload.get("error", "Validation summary unavailable."))
+            return
+        rows = _rows(payload)
+        if not rows:
+            st.info("No validation summary available.")
+            return
+        summary = rows[0]
+        col1, col2, col3 = st.columns(3)
+        col1.metric("Validation success rate", f"{summary.get('success_rate', 0)}%")
+        col2.metric("Failed expectations", summary.get("expectations_failed", 0))
+        col3.metric("Expectations evaluated", summary.get("expectations_evaluated", 0))
+        st.subheader("Freshness")
+        st.json(summary.get("freshness", {}))
+        failed = pd.DataFrame(summary.get("failed_expectations", []))
+        if failed.empty:
+            st.success("No failed expectations in the latest validation summary.")
+        else:
+            st.dataframe(failed, use_container_width=True)
+        st.subheader("Latest dbt run")
+        st.write(summary.get("latest_dbt_run", "See dbt target/run_results.json and dbt target/manifest.json."))
+        st.subheader("Model count")
+        st.write(summary.get("model_count", "Available after `test-dbt` or `generate-dbt-docs`."))
+        return
 
     st.header("1. Project overview")
     st.write(
@@ -96,4 +149,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

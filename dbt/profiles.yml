@@ -1,0 +1,8 @@
+mobility_control_tower:
+  target: dev
+  outputs:
+    dev:
+      type: duckdb
+      path: "../data/serving/dbt_mobility_control_tower.duckdb"
+      threads: 4
+

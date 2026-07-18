@@ -10,7 +10,7 @@ from typing import Any
 import duckdb
 import pandas as pd
 
-from mobility_control_tower.serving.sql_views import QUERY_SQL, create_views
+from mobility_control_tower.serving.sql_views import QUERY_SQL, create_history_views, create_views
 
 
 STATIC_TABLES = (
@@ -51,11 +51,22 @@ def _validate_essential_static(gold_run: Path) -> None:
         raise ValueError(f"Missing essential static gold files: {', '.join(missing)}")
 
 
-def build_serving_database(gold_run: Path, rt_gold_run: Path | None = None, serving_root: Path = Path("data/serving")) -> Path:
+def build_serving_database(
+    gold_run: Path,
+    rt_gold_run: Path | None = None,
+    serving_root: Path = Path("data/serving"),
+    *,
+    history_run: Path | None = None,
+    history_gold_run: Path | None = None,
+) -> Path:
     if not gold_run.is_dir():
         raise FileNotFoundError(f"Static gold run directory not found: {gold_run}")
     if rt_gold_run is not None and not rt_gold_run.is_dir():
         raise FileNotFoundError(f"Real-time gold run directory not found: {rt_gold_run}")
+    if history_run is not None and not history_run.is_dir():
+        raise FileNotFoundError(f"Historical real-time directory not found: {history_run}")
+    if history_gold_run is not None and not history_gold_run.is_dir():
+        raise FileNotFoundError(f"Historical gold directory not found: {history_gold_run}")
     _validate_essential_static(gold_run)
     source_id = gold_run.parent.name
     output_dir = serving_root / source_id / gold_run.name
@@ -75,11 +86,14 @@ def build_serving_database(gold_run: Path, rt_gold_run: Path | None = None, serv
                 if path.is_file():
                     loaded_tables[table] = _load_csv_table(connection, table, path)
         views_created = create_views(connection, set(loaded_tables))
+        views_created.extend(create_history_views(connection, history_run, history_gold_run))
     manifest = {
         "generated_timestamp": datetime.now(timezone.utc).isoformat(),
         "static_gold_run_path": str(gold_run),
         "realtime_gold_run_path": str(rt_gold_run) if rt_gold_run else None,
         "realtime_run_id": rt_gold_run.name if rt_gold_run else None,
+        "historical_realtime_run_path": str(history_run) if history_run else None,
+        "historical_gold_run_path": str(history_gold_run) if history_gold_run else None,
         "database_path": str(db_path),
         "tables_loaded": loaded_tables,
         "views_created": views_created,
@@ -88,10 +102,11 @@ def build_serving_database(gold_run: Path, rt_gold_run: Path | None = None, serv
             "CSV gold outputs are the source of truth for this local serving database.",
             "DuckDB is used as an embedded analytical database, not a server.",
             "Real-time tables remain snapshot-based when loaded.",
+            "Historical views query Parquet files directly through DuckDB read_parquet.",
         ],
         "limitations": [
             "This is not a production database.",
-            "No API, dashboard, scheduler, or streaming system is created.",
+            "Historical collection uses scheduled polling, not a streaming broker.",
             "Rebuild the database after regenerating CSV data products.",
         ],
     }

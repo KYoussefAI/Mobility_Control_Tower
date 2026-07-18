@@ -1,0 +1,14 @@
+{
+  "expectation_suite_name": "history_suite",
+  "meta": {
+    "description": "Historical GTFS-Realtime Parquet validation rules."
+  },
+  "expectations": [
+    {"table": "stop_time_updates", "expectation_type": "expect_column_values_to_not_be_null", "kwargs": {"column": "snapshot_timestamp"}},
+    {"table": "stop_time_updates", "expectation_type": "expect_column_values_to_not_be_null", "kwargs": {"column": "collection_time"}},
+    {"table": "stop_time_updates", "expectation_type": "expect_column_values_to_be_between", "kwargs": {"column": "arrival_delay", "min_value": -7200, "max_value": 7200}},
+    {"table": "feed_summary", "expectation_type": "expect_column_values_to_not_be_null", "kwargs": {"column": "snapshot_timestamp"}},
+    {"table": "feed_summary", "expectation_type": "expect_column_values_to_be_between", "kwargs": {"column": "feed_age_seconds", "min_value": 0}}
+  ]
+}
+

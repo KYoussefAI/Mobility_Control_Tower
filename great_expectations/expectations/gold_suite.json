@@ -1,0 +1,16 @@
+{
+  "expectation_suite_name": "gold_suite",
+  "meta": {
+    "description": "Gold analytics validation rules for KPI table readability, keys, and counts."
+  },
+  "expectations": [
+    {"table": "route_daily_trips", "expectation_type": "expect_column_values_to_not_be_null", "kwargs": {"column": "route_id"}},
+    {"table": "route_daily_trips", "expectation_type": "expect_column_values_to_not_be_null", "kwargs": {"column": "service_date"}},
+    {"table": "route_daily_trips", "expectation_type": "expect_column_values_to_be_between", "kwargs": {"column": "scheduled_trips_count", "min_value": 0}},
+    {"table": "network_daily_summary", "expectation_type": "expect_column_values_to_be_unique", "kwargs": {"column": "service_date"}},
+    {"table": "network_daily_summary", "expectation_type": "expect_column_values_to_be_between", "kwargs": {"column": "scheduled_trips_count", "min_value": 0}},
+    {"table": "route_period_summary", "expectation_type": "expect_column_values_to_not_be_null", "kwargs": {"column": "route_id"}},
+    {"table": "route_period_summary", "expectation_type": "expect_column_values_to_be_between", "kwargs": {"column": "total_scheduled_trips", "min_value": 0}}
+  ]
+}
+

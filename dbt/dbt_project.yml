@@ -1,0 +1,28 @@
+name: mobility_control_tower
+version: "1.0.0"
+config-version: 2
+
+profile: mobility_control_tower
+
+model-paths: ["models"]
+macro-paths: ["macros"]
+test-paths: ["tests"]
+snapshot-paths: ["snapshots"]
+seed-paths: ["seeds"]
+
+target-path: "target"
+clean-targets: ["target", "dbt_packages"]
+
+vars:
+  silver_run: "../data/silver/tisseo/2026-07-17_160355"
+  history_run: "../data/realtime_history/tisseo/trip_updates"
+
+models:
+  mobility_control_tower:
+    staging:
+      +materialized: view
+    intermediate:
+      +materialized: view
+    marts:
+      +materialized: table
+

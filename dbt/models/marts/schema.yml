@@ -1,0 +1,96 @@
+version: 2
+
+models:
+  - name: route_daily_trips
+    description: Scheduled trips per service date and route.
+    columns:
+      - name: service_date
+        description: GTFS service date.
+        tests: [not_null]
+      - name: route_id
+        description: Route id.
+        tests: [not_null]
+      - name: scheduled_trips_count
+        description: Number of scheduled trips.
+        tests: [not_null, non_negative]
+  - name: route_hourly_departures
+    description: Scheduled first-stop departures per service date, route, and service-day hour.
+    columns:
+      - name: service_date
+        description: GTFS service date.
+        tests: [not_null]
+      - name: route_id
+        description: Route id.
+        tests: [not_null]
+      - name: departure_hour
+        description: Service-day hour.
+        tests: [not_null]
+      - name: scheduled_departures_count
+        description: Count of scheduled departures.
+        tests: [not_null, non_negative]
+  - name: stop_daily_departures
+    description: Scheduled departures per service date and stop.
+    columns:
+      - name: stop_id
+        description: Stop id.
+        tests: [not_null]
+      - name: scheduled_departures_count
+        description: Count of scheduled stop departures.
+        tests: [not_null, non_negative]
+  - name: network_daily_summary
+    description: Daily network-level static schedule summary.
+    columns:
+      - name: service_date
+        description: GTFS service date.
+        tests: [not_null, unique]
+      - name: active_routes_count
+        description: Number of active routes.
+        tests: [not_null, non_negative]
+      - name: scheduled_trips_count
+        description: Number of scheduled trips.
+        tests: [not_null, non_negative]
+      - name: scheduled_stop_departures_count
+        description: Number of scheduled stop departures.
+        tests: [not_null, non_negative]
+      - name: active_stops_count
+        description: Number of active stops.
+        tests: [not_null, non_negative]
+  - name: route_period_summary
+    description: Route totals and averages over the GTFS service period.
+    columns:
+      - name: route_id
+        description: Route id.
+        tests: [not_null, unique]
+      - name: total_scheduled_trips
+        description: Total scheduled trips over the period.
+        tests: [not_null, non_negative]
+  - name: route_hourly_headway
+    description: Approximate planned headway in minutes by route and hour.
+    columns:
+      - name: planned_headway_minutes
+        description: Sixty divided by scheduled departures in the route/hour bucket.
+  - name: route_type_daily_summary
+    description: Daily scheduled activity summarized by GTFS route type.
+    columns:
+      - name: route_type
+        description: GTFS route type code.
+        tests:
+          - accepted_values:
+              values: ["0", "1", "2", "3", "4", "5", "6", "7"]
+  - name: busiest_route_day
+    description: Top 50 route/date combinations by scheduled trips.
+  - name: busiest_stop_day
+    description: Top 50 stop/date combinations by scheduled departures.
+  - name: route_delay_history
+    description: Average, minimum, maximum, and p95 observed delay by route over collected snapshots.
+  - name: stop_delay_history
+    description: Average, minimum, maximum, and p95 observed delay by stop over collected snapshots.
+  - name: delay_evolution_by_hour
+    description: Hourly delay trend from preserved snapshots.
+  - name: feed_freshness_trend
+    description: Hourly feed age and parse volume trend.
+  - name: trip_match_trend
+    description: Observed trip, route, and stop volume trend by hour.
+  - name: daily_summary
+    description: Daily historical summary across all observed stop-time updates.
+
