@@ -255,3 +255,4 @@ GitHub Actions run on push and pull request:
 ## Academic Positioning
 
 The project remains explainable as a data engineering academic MVP while presenting production-inspired practices: reproducibility, orchestration, validation, observability, typed configuration, cloud-ready interfaces, CI, and documentation.
+.
