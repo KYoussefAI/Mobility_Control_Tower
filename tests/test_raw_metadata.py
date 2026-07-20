@@ -6,7 +6,6 @@ from pathlib import Path
 
 from mobility_control_tower.ingestion.gtfs_raw import preserve_gtfs_zip
 
-
 SOURCE = {
     "name": "Test Tisséo",
     "source_page_url": "https://example.test/dataset",

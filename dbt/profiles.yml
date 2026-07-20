@@ -3,6 +3,5 @@ mobility_control_tower:
   outputs:
     dev:
       type: duckdb
-      path: "../data/serving/dbt_mobility_control_tower.duckdb"
+      path: "{{ env_var('MCT_DBT_DATABASE_PATH', '../data/dbt/mobility_control_tower.duckdb') }}"
       threads: 4
-

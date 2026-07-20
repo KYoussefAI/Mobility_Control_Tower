@@ -1,0 +1,76 @@
+rule_files:
+  - ../rules/mct_alerts.yml
+
+evaluation_interval: 1m
+
+tests:
+  - interval: 1m
+    input_series:
+      - series: 'mct_incidents_active{source="tisseo",rule="low_realtime_coverage",severity="CRITICAL",status="OPEN"}'
+        values: "1x5"
+    alert_rule_test:
+      - eval_time: 3m
+        alertname: CriticalMobilityIncidentsPresent
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+            exp_annotations:
+              summary: One or more critical application incidents are active.
+
+  - interval: 1m
+    input_series:
+      - series: 'mct_incident_evaluation_last_success_timestamp_seconds{source="tisseo"}'
+        values: "0x40"
+    alert_rule_test:
+      - eval_time: 35m
+        alertname: IncidentEvaluatorStale
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+            exp_annotations:
+              summary: Incident evaluator has not completed successfully recently.
+
+  - interval: 1m
+    input_series:
+      - series: 'mct_incident_evaluation_last_failure_timestamp_seconds{source="tisseo"}'
+        values: "120x5"
+      - series: 'mct_incident_evaluation_last_success_timestamp_seconds{source="tisseo"}'
+        values: "60x5"
+    alert_rule_test:
+      - eval_time: 4m
+        alertname: IncidentEvaluationFailures
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+            exp_annotations:
+              summary: Latest incident evaluation failed.
+
+  - interval: 1m
+    input_series:
+      - series: 'mct_serving_artifact_ready{source="tisseo"}'
+        values: "0x3"
+    alert_rule_test:
+      - eval_time: 2m
+        alertname: MCTServingArtifactNotReady
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+            exp_annotations:
+              summary: Current serving artifact is not queryable.
+
+  - interval: 1m
+    input_series:
+      - series: 'up{job="mct-api",instance="api:8000"}'
+        values: "0x3"
+      - series: 'up{job="mct-exporter",instance="metrics-exporter:9108"}'
+        values: "1x3"
+      - series: 'up{job="prometheus",instance="localhost:9090"}'
+        values: "1x3"
+    alert_rule_test:
+      - eval_time: 2m
+        alertname: RequiredPrometheusTargetDown
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+            exp_annotations:
+              summary: A required Mobility Control Tower scrape target is down.

@@ -12,9 +12,9 @@ Airflow provides scheduling, retries, dependency graphs, and operational visibil
 
 dbt documents and tests SQL models after Silver. It brings lineage, model contracts, and analytics engineering practices without replacing Python ingestion.
 
-## Why Great Expectations?
+## Why MCT quality contracts?
 
-Great Expectations makes data quality explicit. It validates Silver, Gold, and historical datasets and produces Data Docs for review.
+The project uses custom MCT quality contracts so validation behavior is honest and local-first. It validates Silver, dbt Gold, and historical datasets, writes machine-readable results, generates local validation docs, and fails when expectations fail.
 
 ## Why FastAPI?
 
@@ -39,4 +39,13 @@ The use case needs historical snapshots, not high-throughput streaming. Schedule
 ## How Is It Cloud Ready?
 
 The project keeps local mode but adds a storage abstraction that can target local filesystem or S3 via boto3.
+## Incident Engine Discussion
 
+Key talking point: application incidents are separate from Prometheus alerts. dbt computes reliability facts, serving publishes trusted inputs, and the evaluator performs deterministic state transitions with deduplication keys, evidence fingerprints, suppression expiry, and append-only event history. Prometheus monitors aggregate incident state and evaluator health but does not own the operator workflow.
+# Runtime-Proof Talking Points
+
+**How do you prove the demo is release-candidate ready?** The `release-proof` CI job builds the Docker image, starts the deterministic Compose stack, waits on bounded health checks, verifies PostgreSQL incident persistence, checks Airflow scheduler/DAG parsing, validates Prometheus with `promtool`, verifies Grafana through its HTTP API, runs Playwright browser smoke tests, captures real screenshots, performs PostgreSQL backup/restore, runs reversible failure injection, and uploads a release-evidence bundle.
+
+**Why keep SQLite?** SQLite remains the local deterministic fallback for non-Docker development and fast tests. Compose and production use PostgreSQL through the same repository contract, and production rejects SQLite unless an explicit unsafe development override is set.
+
+**What is not claimed locally?** If Docker is unavailable in WSL, local commands can prove Python/dbt/static checks but cannot prove Compose, PostgreSQL runtime persistence, Grafana provisioning, screenshots, or container restart behavior. Those claims come only from the `release-proof` workflow artifacts.

@@ -61,9 +61,7 @@ def preserve_gtfs_zip(
             "file_size_bytes": raw_zip.stat().st_size,
             "sha256": sha256_file(raw_zip),
         }
-        (run_dir / "metadata.json").write_text(
-            json.dumps(metadata, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
-        )
+        (run_dir / "metadata.json").write_text(json.dumps(metadata, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     except Exception:
         shutil.rmtree(run_dir)
         raise
@@ -87,6 +85,4 @@ def download_and_preserve_gtfs(
                 for chunk in response.iter_content(chunk_size=1024 * 1024):
                     if chunk:
                         handle.write(chunk)
-        return preserve_gtfs_zip(
-            temporary_zip, source_id, source, raw_root, ingestion_method="download"
-        )
+        return preserve_gtfs_zip(temporary_zip, source_id, source, raw_root, ingestion_method="download")

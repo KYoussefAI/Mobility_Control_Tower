@@ -94,4 +94,3 @@ def get_storage_backend(settings: AppSettings | None = None) -> StorageBackend:
             raise ValueError("MCT_S3_BUCKET is required when MCT_STORAGE_BACKEND=s3")
         return S3Storage(resolved.s3_bucket, resolved.s3_prefix, resolved.aws_region)
     raise ValueError(f"Unsupported storage backend: {resolved.storage_backend}")
-

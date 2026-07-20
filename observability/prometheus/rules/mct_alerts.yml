@@ -1,0 +1,138 @@
+groups:
+  - name: mobility-control-tower
+    rules:
+      - alert: MCTNoRealtimeCollection
+        expr: time() - mct_realtime_last_collection_timestamp_seconds{source="tisseo",feed_type="trip_updates"} > 900
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: No committed realtime collection for more than 15 minutes.
+
+      - alert: MCTFeedAgeWarning
+        expr: mct_realtime_feed_age_seconds{source="tisseo",feed_type="trip_updates"} > 600
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: GTFS-Realtime feed age is above the warning threshold.
+
+      - alert: MCTFeedAgeCritical
+        expr: mct_realtime_feed_age_seconds{source="tisseo",feed_type="trip_updates"} > 1800
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: GTFS-Realtime feed age is above the critical threshold.
+
+      - alert: MCTIncompleteSnapshot
+        expr: mct_realtime_incomplete_snapshots{source="tisseo",feed_type="trip_updates"} > 0
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: Incomplete realtime snapshot directories are present.
+
+      - alert: MCTCollectionBacklog
+        expr: mct_realtime_unprocessed_snapshots{source="tisseo",feed_type="trip_updates"} > 5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: Realtime analytical refresh backlog is growing.
+
+      - alert: MCTIncrementalRefreshFailed
+        expr: mct_pipeline_last_status{source="tisseo",pipeline="incremental_refresh"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: Latest incremental refresh did not complete successfully.
+
+      - alert: MCTAnalyticsWatermarkOld
+        expr: mct_analytics_watermark_age_seconds{source="tisseo",feed_type="trip_updates"} > 1800
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: Analytical watermark is older than the expected refresh window.
+
+      - alert: MCTQualityContractsFailed
+        expr: mct_quality_last_success{source="tisseo",suite="all"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: Latest MCT quality-contract validation failed.
+
+      - alert: MCTServingArtifactNotReady
+        expr: mct_serving_artifact_ready{source="tisseo"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: Current serving artifact is not queryable.
+
+      - alert: MCTServingArtifactOld
+        expr: mct_serving_artifact_age_seconds{source="tisseo"} > 86400
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: Current serving artifact is older than one day.
+
+      - alert: MCTAPIReadinessFailing
+        expr: up{job="mct-api"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: Prometheus cannot scrape the MCT API metrics endpoint.
+
+      - alert: RequiredPrometheusTargetDown
+        expr: up{job=~"mct-api|mct-exporter|prometheus"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: A required Mobility Control Tower scrape target is down.
+
+      - alert: MCTAPIHigh5xxRate
+        expr: sum(rate(mct_api_requests_total{status="5xx"}[5m])) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: MCT API 5xx response rate is elevated.
+
+      - alert: MCTAPIP95LatencyHigh
+        expr: histogram_quantile(0.95, sum(rate(mct_duckdb_query_duration_seconds_bucket[5m])) by (le)) > 2
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: MCT DuckDB query p95 latency is elevated.
+
+      - alert: CriticalMobilityIncidentsPresent
+        expr: sum(mct_incidents_active{severity="CRITICAL",status!="SUPPRESSED"}) > 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: One or more critical application incidents are active.
+
+      - alert: IncidentEvaluatorStale
+        expr: time() - mct_incident_evaluation_last_success_timestamp_seconds{source="tisseo"} > 1800
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: Incident evaluator has not completed successfully recently.
+
+      - alert: IncidentEvaluationFailures
+        expr: mct_incident_evaluation_last_failure_timestamp_seconds{source="tisseo"} > mct_incident_evaluation_last_success_timestamp_seconds{source="tisseo"}
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: Latest incident evaluation failed.

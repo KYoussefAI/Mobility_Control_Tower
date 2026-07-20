@@ -8,7 +8,6 @@ from typing import Any
 
 from prometheus_client import CONTENT_TYPE_LATEST, Counter, Gauge, Histogram, generate_latest
 
-
 PIPELINE_DURATION = Histogram("mct_pipeline_duration_seconds", "Pipeline task duration in seconds", ["pipeline", "task"])
 PIPELINE_SUCCESS = Counter("mct_pipeline_success_total", "Successful pipeline tasks", ["pipeline", "task"])
 PIPELINE_FAILURES = Counter("mct_pipeline_failures_total", "Failed pipeline tasks", ["pipeline", "task"])
@@ -29,4 +28,3 @@ def observe_duration(metric: Histogram, labels: dict[str, str], fn: Callable[[],
 
 def metrics_response() -> tuple[bytes, str]:
     return generate_latest(), CONTENT_TYPE_LATEST
-

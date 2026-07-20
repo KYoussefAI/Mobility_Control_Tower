@@ -20,11 +20,76 @@ models:
         description: GTFS route id.
         tests: [not_null]
   - name: int_first_trip_departures
-    description: First stop departure per trip used to count route hourly departures.
+    description: First stop departure per trip used to count route hourly departures. Grain is trip_id.
     columns:
       - name: trip_id
         description: GTFS trip id.
         tests: [not_null, unique]
       - name: departure_hour
         description: Service-day departure hour.
-
+        tests: [valid_departure_hour]
+  - name: int_route_type_stop_departures
+    description: Route-aware scheduled stop departures. Grain is service_date + route_type + stop_id.
+    tests:
+      - unique_combination:
+          arguments:
+            combination_of_columns: [service_date, route_type, stop_id]
+    columns:
+      - name: service_date
+        description: GTFS service date.
+        tests: [not_null]
+      - name: route_type
+        description: GTFS route type code.
+        tests: [not_null]
+      - name: stop_id
+        description: Stop id.
+        tests: [not_null]
+      - name: scheduled_departures_count
+        description: Scheduled departures for this date/type/stop.
+        tests: [not_null, non_negative]
+  - name: int_realtime_eligible_scheduled_trips
+    description: Scheduled trips eligible for GTFS-Realtime coverage analysis. Grain is source + service_date + route_id + trip_id.
+    tests:
+      - unique_combination:
+          arguments:
+            combination_of_columns: [source, service_date, route_id, trip_id]
+    columns:
+      - name: source
+        description: Namespaced source identifier.
+        tests: [not_null]
+      - name: service_date
+        description: Source-local GTFS service date.
+        tests: [not_null]
+      - name: route_id
+        description: Source-local route identifier.
+        tests: [not_null]
+      - name: trip_id
+        description: Source-local trip identifier.
+        tests: [not_null]
+      - name: service_period
+        description: Configured service period bucket.
+        tests: [not_null]
+      - name: eligibility_status
+        description: ELIGIBLE or explicit ineligibility reason.
+        tests: [not_null]
+      - name: calculation_version
+        description: Reliability calculation version.
+        tests: [not_null]
+  - name: int_realtime_trip_observations
+    description: Canonical Trip Update observation evidence. Grain is observation_key.
+    columns:
+      - name: source
+        description: Namespaced source identifier.
+        tests: [not_null]
+      - name: observation_key
+        description: Deterministic observation key.
+        tests: [not_null, unique]
+      - name: match_status
+        description: EXACT, UNMATCHED, AMBIGUOUS, DERIVED, or NOT_APPLICABLE.
+        tests: [not_null]
+      - name: is_explicitly_canceled
+        description: True only when Trip Update schedule_relationship provides explicit cancellation evidence.
+        tests: [not_null]
+      - name: calculation_version
+        description: Reliability calculation version.
+        tests: [not_null]

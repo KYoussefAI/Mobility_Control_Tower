@@ -1,0 +1,20 @@
+#!/usr/bin/env sh
+set -eu
+
+: "${MCT_DB_USER:=mct_app}"
+: "${MCT_DB_PASSWORD:=mct_app_demo}"
+: "${MCT_DB_NAME:=mct_app}"
+
+psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<SQL
+DO
+\$\$
+BEGIN
+  IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = '${MCT_DB_USER}') THEN
+    CREATE ROLE ${MCT_DB_USER} LOGIN PASSWORD '${MCT_DB_PASSWORD}';
+  END IF;
+END
+\$\$;
+SELECT 'CREATE DATABASE ${MCT_DB_NAME} OWNER ${MCT_DB_USER}'
+WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = '${MCT_DB_NAME}')\gexec
+GRANT ALL PRIVILEGES ON DATABASE ${MCT_DB_NAME} TO ${MCT_DB_USER};
+SQL

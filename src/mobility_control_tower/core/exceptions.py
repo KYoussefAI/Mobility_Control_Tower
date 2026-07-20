@@ -15,4 +15,3 @@ def cli_failure_message(exc: Exception) -> str:
 
 def not_found(detail: str) -> HTTPException:
     return HTTPException(status_code=404, detail=detail)
-

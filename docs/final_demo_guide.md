@@ -85,3 +85,22 @@
 5. "FastAPI exposes read-only JSON endpoints."
 6. "The Streamlit dashboard consumes the API and shows the final local demo."
 7. "This is not production monitoring; it is a complete academic MVP."
+
+## Deterministic Docker Demo
+
+For release-candidate proof, prefer the deterministic Compose path:
+
+```bash
+make demo
+make demo-smoke
+make browser-smoke
+make capture-screenshots
+make verify-prometheus-runtime
+make verify-grafana-runtime
+make verify-postgres-restore
+make demo-down
+```
+
+When Docker is unavailable locally, GitHub Actions `release-proof` is the authoritative runtime evidence gate. Do not mark local Compose verification as passed unless containers actually started.
+
+Screenshots are generated into `artifacts/screenshots/` with `manifest.json`. Portfolio screenshots under `docs/screenshots/` should only be updated from a successful deterministic capture.

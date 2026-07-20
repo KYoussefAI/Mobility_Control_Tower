@@ -1,13 +1,22 @@
 select
+    coalesce(cast(source as varchar), '{{ var("source_id", "tisseo") }}') as source,
+    cast(snapshot_id as varchar) as snapshot_id,
     cast(snapshot_timestamp as varchar) as snapshot_timestamp,
     cast(collection_time as timestamp) as collection_time,
+    cast(feed_header_timestamp as varchar) as feed_header_timestamp,
     try_cast(feed_age_seconds as integer) as feed_age_seconds,
     try_cast(poll_number as integer) as poll_number,
     cast(collection_date as varchar) as collection_date,
     cast(collection_hour as varchar) as collection_hour,
+    cast(feed_type as varchar) as feed_type,
     cast(trip_id as varchar) as trip_id,
     cast(route_id as varchar) as route_id,
     cast(stop_id as varchar) as stop_id,
+    try_cast(stop_sequence as integer) as stop_sequence,
+    try_cast(arrival_delay as double) as arrival_delay_seconds,
+    try_cast(departure_delay as double) as departure_delay_seconds,
+    cast(arrival_time as varchar) as arrival_time,
+    cast(departure_time as varchar) as departure_time,
+    cast(schedule_relationship as varchar) as schedule_relationship,
     coalesce(try_cast(arrival_delay as double), try_cast(departure_delay as double)) as delay_seconds
 from {{ history_parquet('stop_time_updates.parquet') }}
-

@@ -35,12 +35,11 @@ def generate_serving_report(serving_run: Path, reports_dir: Path = Path("data/re
         raise FileNotFoundError(f"Serving manifest not found: {manifest_path}")
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     db_path = Path(manifest["database_path"])
+    if not db_path.is_absolute():
+        db_path = serving_run / db_path
     tables = manifest.get("tables_loaded", {})
     static_tables = {name: details for name, details in tables.items() if not name.startswith("rt_")}
     realtime_tables = {name: details for name, details in tables.items() if name.startswith("rt_")}
-    table_rows = pd.DataFrame(
-        [{"table": name, "rows": details.get("row_count", 0)} for name, details in sorted(tables.items())]
-    )
     views = pd.DataFrame([{"view": name} for name in manifest.get("views_created", [])])
     report = f"""# Mobility Control Tower - Serving Layer Report
 

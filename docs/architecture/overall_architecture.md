@@ -15,9 +15,8 @@ flowchart LR
     API --> DASH
 
     CLI --> DBT[dbt Models]
-    CLI --> GE[Great Expectations]
+    CLI --> QC[MCT Quality Contracts]
     DBT --> DUCK
-    GE --> QUALITY[Data Quality Summary]
+    QC --> QUALITY[Data Quality Summary]
     QUALITY --> API
 ```
-

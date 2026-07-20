@@ -1,0 +1,11 @@
+apiVersion: 1
+
+providers:
+  - name: Mobility Control Tower
+    orgId: 1
+    folder: Mobility Control Tower
+    type: file
+    disableDeletion: false
+    editable: false
+    options:
+      path: /var/lib/grafana/dashboards

@@ -125,10 +125,16 @@ def check_realtime_compatibility(silver_run: Path, rt_run: Path, reports_dir: Pa
             "unmatched_count": 0,
             "unmatched_percentage": 0.0,
             "sample_unmatched_values": [],
-            "explanation": "Real-time snapshot has route_id, trip_id, or stop_id values useful for joining." if (rt_route_ids or rt_trip_ids or rt_stop_ids) else "Real-time snapshot did not expose route_id, trip_id, or stop_id values.",
+            "explanation": (
+                "Real-time snapshot has route_id, trip_id, or stop_id values useful for joining."
+                if (rt_route_ids or rt_trip_ids or rt_stop_ids)
+                else "Real-time snapshot did not expose route_id, trip_id, or stop_id values."
+            ),
         },
         _id_check("route_id_matches_static_routes", "route_id", rt_route_ids, _static_ids(silver_run, "routes", "route_id")),
-        _id_check("trip_id_matches_static_trips", "trip_id", rt_trip_ids, _static_ids(silver_run, "trips", "trip_id"), optional=(feed_type == "service_alerts")),
+        _id_check(
+            "trip_id_matches_static_trips", "trip_id", rt_trip_ids, _static_ids(silver_run, "trips", "trip_id"), optional=(feed_type == "service_alerts")
+        ),
         _id_check("stop_id_matches_static_stops", "stop_id", rt_stop_ids, _static_ids(silver_run, "stops", "stop_id")),
     ]
     report = {

@@ -1,4 +1,4 @@
-# Basic GTFS data quality
+# Data Quality
 
 The silver validator checks whether core tables and columns exist, reports row counts, and detects:
 
@@ -19,4 +19,12 @@ The report's overall status is the most severe individual status. Validation rep
 
 ## Limitations
 
-This is educational, basic validation rather than complete GTFS certification. It does not implement the full GTFS Schedule specification, conditional field requirements, geographic plausibility within Toulouse, ordering rules, schedule consistency, shape validation, translated feeds, or every extended route type. It counts problems but does not include potentially sensitive or very large lists of affected rows. A dedicated standards validator would still be appropriate before production publication.
+Analytical quality after Silver is handled by dbt tests and MCT quality contracts:
+
+- dbt unit tests catch fan-out and semantic KPI regressions.
+- dbt data tests enforce composite grains, non-negative metrics, null keys, reconciliation totals, and delay policy.
+- MCT quality contracts validate the authoritative dbt Gold artifact and fail the CLI when expectations fail.
+
+Serving publication records the latest quality status in `serving_manifest.json` and `current.json`. The serving builder validates DuckDB queryability before updating the current pointer; a failed quality-contract run or failed serving validation preserves the prior last known-good artifact.
+
+This is not complete GTFS certification. A dedicated standards validator would still be appropriate before production publication.

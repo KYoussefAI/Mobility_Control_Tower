@@ -29,7 +29,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     MCT_API_HOST=0.0.0.0 \
     MCT_API_PORT=8000 \
     MCT_DASHBOARD_PORT=8501 \
-    MCT_DUCKDB_PATH=/app/data/serving/tisseo/2026-07-17_160355/mobility_control_tower.duckdb \
+    MCT_SERVING_ROOT=/app/data/serving \
     AIRFLOW_HOME=/app/airflow
 
 WORKDIR /app
@@ -50,11 +50,7 @@ RUN chmod +x /entrypoint.sh \
 
 USER mct
 
-EXPOSE 8000 8501 8080
-
-HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
-    CMD python -c "import socket, os; s=socket.create_connection(('127.0.0.1', int(os.getenv('MCT_HEALTH_PORT', os.getenv('MCT_API_PORT', '8000')))), 5); s.close()"
+EXPOSE 8000 8501 8080 9108
 
 ENTRYPOINT ["/usr/bin/tini", "--", "/entrypoint.sh"]
 CMD ["api"]
-

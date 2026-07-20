@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Iterable
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any
 
 from mobility_control_tower.transformations.gtfs_silver import parse_gtfs_time, read_csv_table
-
 
 TABLES = ("agency", "stops", "routes", "trips", "stop_times", "calendar", "calendar_dates")
 REQUIRED_COLUMNS = {
@@ -64,7 +64,15 @@ def validate_tables(tables: dict[str, tuple[list[str], list[dict[str, str]]]]) -
         missing = int(table not in tables)
         checks.append(_check(f"{table}_table_present", _status(missing), table, missing, f"Silver {table} table must exist."))
     schedules_missing = int("calendar" not in tables and "calendar_dates" not in tables)
-    checks.append(_check("service_calendar_present", _status(schedules_missing), "calendar/calendar_dates", schedules_missing, "At least one service calendar table must exist."))
+    checks.append(
+        _check(
+            "service_calendar_present",
+            _status(schedules_missing),
+            "calendar/calendar_dates",
+            schedules_missing,
+            "At least one service calendar table must exist.",
+        )
+    )
 
     row_counts = {table: len(rows) for table, (_, rows) in tables.items()}
     for table, (columns, rows) in tables.items():
@@ -72,7 +80,15 @@ def validate_tables(tables: dict[str, tuple[list[str], list[dict[str, str]]]]) -
         missing_columns = [column for column in expected if column not in columns]
         if table == "routes" and "route_short_name" not in columns and "route_long_name" not in columns:
             missing_columns.append("route_short_name or route_long_name")
-        checks.append(_check(f"{table}_required_columns", _status(len(missing_columns)), table, len(missing_columns), "Missing: " + ", ".join(missing_columns) if missing_columns else "All required columns are present."))
+        checks.append(
+            _check(
+                f"{table}_required_columns",
+                _status(len(missing_columns)),
+                table,
+                len(missing_columns),
+                "Missing: " + ", ".join(missing_columns) if missing_columns else "All required columns are present.",
+            )
+        )
         available_keys = [column for column in KEY_COLUMNS.get(table, ()) if column in columns]
         missing_values = _missing_count(rows, available_keys)
         checks.append(_check(f"{table}_missing_key_values", _status(missing_values), table, missing_values, "Counts empty values in available key columns."))
@@ -98,7 +114,9 @@ def validate_tables(tables: dict[str, tuple[list[str], list[dict[str, str]]]]) -
         for column in ("arrival_time", "departure_time"):
             if column in columns:
                 count = sum(bool(row.get(column)) and parse_gtfs_time(row[column]) is None for row in rows)
-                checks.append(_check(f"invalid_{column}_format", _status(count), "stop_times", count, "Expected H+:MM:SS with minutes and seconds from 00 to 59."))
+                checks.append(
+                    _check(f"invalid_{column}_format", _status(count), "stop_times", count, "Expected H+:MM:SS with minutes and seconds from 00 to 59.")
+                )
 
     def references(child: str, child_column: str, parent: str, parent_column: str) -> None:
         if child not in tables or parent not in tables or child_column not in tables[child][0] or parent_column not in tables[parent][0]:
@@ -124,7 +142,16 @@ def validate_tables(tables: dict[str, tuple[list[str], list[dict[str, str]]]]) -
 
 
 def _markdown(report: dict[str, Any]) -> str:
-    lines = [f"# GTFS quality report: {report['run_id']}", "", f"Overall status: **{report['overall_status']}**", "", "## Row counts", "", "| Table | Rows |", "|---|---:|"]
+    lines = [
+        f"# GTFS quality report: {report['run_id']}",
+        "",
+        f"Overall status: **{report['overall_status']}**",
+        "",
+        "## Row counts",
+        "",
+        "| Table | Rows |",
+        "|---|---:|",
+    ]
     lines.extend(f"| `{table}` | {count} |" for table, count in sorted(report["row_counts"].items()))
     lines.extend(["", "## Checks", "", "| Status | Check | Table | Problems | Explanation |", "|---|---|---|---:|---|"])
     for check in report["checks"]:

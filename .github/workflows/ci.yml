@@ -16,7 +16,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -e '.[dev,quality]'
+          python -m pip install -e '.[dev,quality,analytics,orchestration]'
       - name: Ruff
         run: ruff check .
       - name: Black
@@ -27,9 +27,205 @@ jobs:
         run: mypy src
       - name: Pytest with coverage
         run: |
+          python -m mobility_control_tower.cli migrate-incident-store --incident-root data/ci/incidents
           coverage run -m pytest
-          coverage report --fail-under=0
-          coverage html
+          coverage report --fail-under=80
+      - name: dbt
+        run: |
+          python scripts/create_deterministic_fixture.py
+          python -c "from pathlib import Path; Path('data/fixtures/dbt').mkdir(parents=True, exist_ok=True)"
+          dbt deps --project-dir dbt --profiles-dir dbt
+          dbt parse --project-dir dbt --profiles-dir dbt --no-partial-parse
+          MCT_DBT_DATABASE_PATH=data/fixtures/dbt/ci.duckdb dbt build --project-dir dbt --profiles-dir dbt --vars '{"silver_run":"data/fixtures/silver/tisseo/phase1","history_run":"data/fixtures/realtime_history/tisseo/trip_updates","source_id":"tisseo","static_run_id":"phase1"}' --full-refresh
+          python scripts/export_reliability_outputs.py --database data/fixtures/dbt/ci.duckdb --output-dir data/fixtures/reliability_compare/full
+          MCT_DBT_DATABASE_PATH=data/fixtures/dbt/ci.duckdb dbt build --project-dir dbt --profiles-dir dbt --vars '{"silver_run":"data/fixtures/silver/tisseo/phase1","history_run":"data/fixtures/realtime_history/tisseo/trip_updates","source_id":"tisseo","static_run_id":"phase1"}'
+          python scripts/export_reliability_outputs.py --database data/fixtures/dbt/ci.duckdb --output-dir data/fixtures/reliability_compare/incremental
+          python scripts/compare_reliability_outputs.py --full-refresh data/fixtures/reliability_compare/full --incremental data/fixtures/reliability_compare/incremental
+          MCT_DBT_DATABASE_PATH=data/fixtures/dbt/ci.duckdb dbt build --project-dir dbt --profiles-dir dbt --vars '{"silver_run":"data/fixtures/silver/tisseo/phase1","history_run":"data/fixtures/realtime_history/tisseo/trip_updates","source_id":"tisseo","static_run_id":"phase1"}'
+          python scripts/export_reliability_outputs.py --database data/fixtures/dbt/ci.duckdb --output-dir data/fixtures/reliability_compare/idempotent
+          python scripts/assert_incremental_idempotency.py --full-refresh data/fixtures/reliability_compare/incremental --incremental data/fixtures/reliability_compare/idempotent
+      - name: Observability config validation
+        run: |
+          python scripts/validate_grafana_metrics.py
+          docker run --rm -v "$PWD/observability/prometheus:/etc/prometheus:ro" prom/prometheus:v2.54.1 promtool check config /etc/prometheus/prometheus.yml
+          docker run --rm -v "$PWD/observability/prometheus/rules:/rules:ro" prom/prometheus:v2.54.1 promtool check rules /rules/*.yml
+          docker run --rm -v "$PWD/observability/prometheus:/etc/prometheus:ro" -w /etc/prometheus/tests prom/prometheus:v2.54.1 promtool test rules mct_alerts.test.yml
+      - name: Phase 3 local gates
+        run: |
+          make security-check
+          make lineage-smoke
+          make verify-restore
+          make benchmark
+      - name: Deterministic analytical flow
+        run: |
+          DBT_RUN=$(python -m mobility_control_tower.cli run-dbt --silver-run data/fixtures/silver/tisseo/phase1 --history-run data/fixtures/realtime_history/tisseo/trip_updates --output-root data/fixtures/dbt_gold 2>&1 | tee /tmp/run_dbt.log | sed -n 's/.*dbt gold output written to: //p' | tail -1)
+          python -m mobility_control_tower.cli run-quality-validation --suite all --silver-run data/fixtures/silver/tisseo/phase1 --gold-run "$DBT_RUN" --history-run data/fixtures/realtime_history/tisseo/trip_updates
+          SERVING_DB=$(python -m mobility_control_tower.cli build-serving-db --gold-run "$DBT_RUN" --history-run data/fixtures/realtime_history/tisseo/trip_updates --history-gold-run "$DBT_RUN" --serving-root data/fixtures/serving 2>&1 | tee /tmp/build_serving.log | sed -n 's/.*Serving database written to: //p' | tail -1)
+          python scripts/smoke_test_reliability_views.py "$SERVING_DB"
+          python -m mobility_control_tower.cli evaluate-incidents --source tisseo --evaluation-time '2026-07-19T12:00:00+00:00' --serving-root data/fixtures/serving --history-root data/fixtures/realtime_history --json
+          python -m mobility_control_tower.cli evaluate-incidents --source tisseo --evaluation-time '2026-07-19T12:00:00+00:00' --serving-root data/fixtures/serving --history-root data/fixtures/realtime_history --json
+          make verify-restore
       - name: Build Docker image
         run: docker build -t mobility-control-tower:ci .
+      - name: Production Compose config
+        env:
+          MCT_PUBLIC_HOSTNAME: mct.example.test
+          MCT_AUTH_SECRET: ci-production-placeholder-secret
+          TLS_EMAIL: ci@example.test
+        run: |
+          docker compose -f docker-compose.yml -f deploy/production.compose.yml --profile production config --format json > artifacts-production-compose.json
+          python scripts/verify_production_overlay.py --compose-json artifacts-production-compose.json
 
+  compose-smoke:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compose config
+        run: docker compose --profile demo config
+      - name: Compose build
+        run: docker compose --profile demo build
+      - name: Start deterministic demo stack
+        run: docker compose --profile demo up -d
+      - name: Wait for stack health
+        run: ./scripts/wait_for_stack.sh
+      - name: Smoke test stack
+        run: ./scripts/smoke_test_stack.sh
+      - name: Container status on failure
+        if: failure()
+        run: |
+          if ! docker compose --profile demo ps; then echo "compose ps failed"; fi
+          if ! docker compose --profile demo logs --tail=300; then echo "compose logs failed"; fi
+      - name: Tear down
+        if: always()
+        run: docker compose --profile demo down -v --remove-orphans
+
+  release-proof:
+    name: release-proof
+    runs-on: ubuntu-latest
+    needs: test
+    timeout-minutes: 90
+    env:
+      MCT_PROFILE: demo
+      MCT_AUTH_SECRET: local-demo-change-me
+      MCT_INCIDENT_BACKEND: postgres
+      MCT_INCIDENT_DATABASE_URL: postgresql://mct_app:mct_app_demo@postgres:5432/mct_app
+      AIRFLOW_ADMIN_USERNAME: admin
+      AIRFLOW_ADMIN_PASSWORD: admin
+      GRAFANA_ADMIN_USER: admin
+      GRAFANA_ADMIN_PASSWORD: admin
+      MCT_STACK_WAIT_TIMEOUT: "420"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+          cache: pip
+      - name: Install runtime proof dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e '.[dev,quality,analytics,orchestration]'
+          python -m playwright install --with-deps chromium
+      - name: Docker and Compose versions
+        run: |
+          docker version
+          docker compose version
+      - name: Validate Compose configuration
+        env:
+          MCT_PUBLIC_HOSTNAME: mct.example.test
+          MCT_AUTH_SECRET: ci-production-placeholder-secret
+          TLS_EMAIL: ci@example.test
+        run: |
+          mkdir -p artifacts/runtime
+          docker compose --profile demo config
+          docker compose -f docker-compose.yml -f deploy/production.compose.yml --profile production config --format json > artifacts/runtime/production-compose.json
+          python scripts/verify_production_overlay.py --compose-json artifacts/runtime/production-compose.json
+      - name: Build application image
+        run: docker compose --profile demo build
+      - name: Start deterministic stack
+        run: docker compose --profile demo up -d
+      - name: Wait for stack health
+        run: ./scripts/wait_for_stack.sh
+      - name: Verify incident backend and migration
+        run: |
+          docker compose exec -T api python -m mobility_control_tower.cli migrate-incident-store --json | tee artifacts/runtime/incident-migration.json
+          grep -q '"backend": "postgres"' artifacts/runtime/incident-migration.json
+      - name: PostgreSQL incident repository contract
+        run: |
+          docker compose exec -T api env MCT_TEST_POSTGRES_URL='postgresql://mct_app:mct_app_demo@postgres:5432/mct_app' pytest tests/test_incident_repository_postgres.py
+          docker compose exec -T api python scripts/seed_demo_incidents.py
+      - name: Verify Airflow runtime
+        run: python scripts/verify_airflow_runtime.py
+      - name: Run deterministic incident evaluation twice
+        run: |
+          docker compose exec -T api python -m mobility_control_tower.cli evaluate-incidents --evaluation-time '2026-07-19T15:00:00+00:00' --correlation-id release-proof --json | tee artifacts/runtime/incident-evaluation-1.json
+          docker compose exec -T api python -m mobility_control_tower.cli evaluate-incidents --evaluation-time '2026-07-19T15:00:00+00:00' --correlation-id release-proof --json | tee artifacts/runtime/incident-evaluation-2.json
+      - name: Smoke test stack
+        run: ./scripts/smoke_test_stack.sh
+      - name: Validate Prometheus with promtool
+        run: |
+          docker run --rm -v "$PWD/observability/prometheus:/etc/prometheus:ro" prom/prometheus:v2.54.1 promtool check config /etc/prometheus/prometheus.yml
+          docker run --rm -v "$PWD/observability/prometheus/rules:/rules:ro" prom/prometheus:v2.54.1 promtool check rules /rules/*.yml
+          docker run --rm -v "$PWD/observability/prometheus:/etc/prometheus:ro" -w /etc/prometheus/tests prom/prometheus:v2.54.1 promtool test rules mct_alerts.test.yml
+      - name: Verify Prometheus runtime
+        run: python scripts/verify_prometheus_runtime.py
+      - name: Verify Grafana runtime
+        run: python scripts/verify_grafana_runtime.py
+      - name: Browser smoke tests
+        run: python scripts/browser_smoke.py
+      - name: Capture deterministic screenshots
+        run: python scripts/capture_screenshots.py
+      - name: Verify PostgreSQL restore
+        run: |
+          docker compose exec -T api python scripts/verify_postgres_restore.py
+          docker compose cp api:/app/artifacts/runtime/restore-report.json artifacts/runtime/restore-report.json
+          docker compose cp api:/app/artifacts/runtime/incident-postgres-backup.json artifacts/runtime/incident-postgres-backup.json
+      - name: Failure injection
+        run: python scripts/failure_injection.py
+      - name: Collect runtime evidence
+        if: always()
+        run: |
+          mkdir -p artifacts/runtime artifacts/release-evidence/container-logs
+          set +e
+          python scripts/collect_stack_evidence.py
+          evidence_status=$?
+          if ! docker compose --profile demo ps > artifacts/runtime/docker-compose-ps.txt; then echo "compose ps collection failed"; fi
+          if ! docker compose --profile demo logs --no-color --tail=1000 > artifacts/runtime/compose.log; then echo "compose log collection failed"; fi
+          exit "$evidence_status"
+      - name: Assemble release evidence
+        if: always()
+        run: python scripts/verify_runtime_evidence.py
+      - name: Job summary
+        if: always()
+        run: |
+          {
+            echo "## Mobility Control Tower release proof"
+            echo
+            echo "- Image build: completed before stack start"
+            echo "- Incident backend: PostgreSQL required by migration grep"
+            echo "- Evidence bundle: artifacts/release-evidence"
+            echo "- Screenshots: artifacts/screenshots"
+            echo
+            if [ -f artifacts/release-evidence/manifest.json ]; then
+              python -c "import json; from pathlib import Path; m=json.loads(Path('artifacts/release-evidence/manifest.json').read_text()); print(f'- Overall status: {m.get(\"overall_status\")}'); print(f'- Screenshot count: {m.get(\"screenshot_count\")}'); print(f'- Incident backend: {m.get(\"incident_backend\")}')"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload release evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-evidence
+          path: artifacts/release-evidence
+          retention-days: 30
+      - name: Upload runtime artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: runtime-artifacts
+          path: |
+            artifacts/runtime
+            artifacts/screenshots
+          retention-days: 30
+      - name: Tear down
+        if: always()
+        run: docker compose --profile demo down -v --remove-orphans

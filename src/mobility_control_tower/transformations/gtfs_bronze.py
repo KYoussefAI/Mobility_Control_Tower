@@ -11,7 +11,6 @@ from datetime import datetime, timezone
 from pathlib import Path, PurePosixPath
 from typing import Any
 
-
 GTFS_FILES = (
     "agency.txt",
     "stops.txt",
@@ -83,9 +82,7 @@ def build_bronze(
             "extracted_files": extracted,
             "missing_important_files": [name for name in GTFS_FILES if name not in extracted],
         }
-        (output_dir / "bronze_manifest.json").write_text(
-            json.dumps(manifest, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
-        )
+        (output_dir / "bronze_manifest.json").write_text(json.dumps(manifest, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     except Exception:
         shutil.rmtree(output_dir)
         raise

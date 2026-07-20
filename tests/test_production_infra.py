@@ -15,28 +15,51 @@ def test_docker_and_compose_files_are_present_and_configured() -> None:
     assert "FROM python:3.10-slim AS builder" in dockerfile
     assert "FROM python:3.10-slim AS runtime" in dockerfile
     assert "USER mct" in dockerfile
-    assert "HEALTHCHECK" in dockerfile
-    assert set(compose["services"]) == {"api", "dashboard", "airflow-webserver", "airflow-scheduler", "airflow-init"}
+    assert set(compose["services"]) == {
+        "postgres",
+        "incident-migrate",
+        "demo-bootstrap",
+        "api",
+        "dashboard",
+        "metrics-exporter",
+        "prometheus",
+        "grafana",
+        "airflow-webserver",
+        "airflow-scheduler",
+        "airflow-init",
+    }
+    assert compose["services"]["postgres"]["healthcheck"]["test"][0] == "CMD-SHELL"
     assert "mct-data" in compose["volumes"]
-    assert "airflow-metadata" in compose["volumes"]
+    assert "postgres-data" in compose["volumes"]
 
 
 def test_env_example_documents_required_variables() -> None:
     text = Path(".env.example").read_text(encoding="utf-8")
 
-    for name in ("GTFS_SOURCE", "API_PORT", "DASHBOARD_PORT", "AIRFLOW_PORT", "POLLING_INTERVAL", "DUCKDB_PATH", "HISTORY_PATH", "LOG_LEVEL"):
+    for name in (
+        "GTFS_SOURCE",
+        "API_PORT",
+        "DASHBOARD_PORT",
+        "AIRFLOW_PORT",
+        "MCT_COLLECTION_INTERVAL_SECONDS",
+        "MCT_REFRESH_INTERVAL_SECONDS",
+        "MCT_SERVING_ROOT",
+        "MCT_HISTORY_ROOT",
+        "LOG_LEVEL",
+    ):
         assert name in text
 
 
 def test_github_actions_and_precommit_are_configured() -> None:
     ci = yaml.safe_load(Path(".github/workflows/ci.yml").read_text(encoding="utf-8"))
-    quality = yaml.safe_load(Path(".github/workflows/quality.yml").read_text(encoding="utf-8"))
     precommit = yaml.safe_load(Path(".pre-commit-config.yaml").read_text(encoding="utf-8"))
 
     assert "push" in ci[True]
     assert "pull_request" in ci[True]
     assert "docker build" in str(ci)
-    assert "coverage html" in str(quality)
+    assert "coverage report --fail-under=80" in str(ci)
+    assert "dbt build" in str(ci)
+    assert not Path(".github/workflows/quality.yml").exists()
     hooks = str(precommit)
     for tool in ("ruff", "black", "isort", "mypy", "trailing-whitespace", "end-of-file-fixer", "check-yaml", "check-toml"):
         assert tool in hooks
@@ -71,4 +94,3 @@ def test_logging_and_exception_helpers() -> None:
     exc = not_found("missing")
     assert exc.status_code == 404
     assert exc.detail == "missing"
-

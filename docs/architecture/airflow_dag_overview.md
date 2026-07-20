@@ -8,17 +8,24 @@ flowchart TD
         A3 --> A4[build_silver]
         A4 --> A5[validate_gtfs]
         A5 --> A6[run_dbt_models]
-        A6 --> A7[test_dbt_models]
-        A7 --> A8[validate_with_ge]
-        A8 --> A9[generate_static_charts]
-        A9 --> A10[generate_demo_report]
-        A10 --> A11[build_serving_db]
+        A6 --> A7[validate_with_quality_contracts]
+        A7 --> A8[generate_static_charts]
+        A8 --> A9[generate_demo_report]
+        A9 --> A10[build_serving_db]
     end
 
-    subgraph realtime_collection
-        R1[collect_gtfs_rt] --> R2[run_dbt_history]
-        R2 --> R3[validate_history_with_ge]
-        R3 --> R4[build_serving_db_history]
+    subgraph realtime_snapshot_collection
+        R1[collect_gtfs_rt]
+    end
+
+    subgraph realtime_incremental_refresh
+        H1[discover_new_snapshots] --> H2[run_dbt_history]
+        H2 --> H3[validate_recent_quality]
+        H3 --> H4[publish_serving_refresh]
+        H4 --> H5[advance_refresh_watermark]
+    end
+
+    subgraph daily_platform_maintenance
+        M1[full_history_quality] --> M2[storage_inventory]
     end
 ```
-

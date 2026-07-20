@@ -59,7 +59,17 @@ def compute_historical_kpis(stop_updates: pd.DataFrame, feed_summary: pd.DataFra
         )
         .reset_index()
         if not stops.empty and "route_id" in stops.columns
-        else pd.DataFrame(columns=["route_id", "updates_collected", "average_delay_seconds", "maximum_observed_delay_seconds", "minimum_observed_delay_seconds", "p95_delay_seconds", "snapshots_observed"])
+        else pd.DataFrame(
+            columns=[
+                "route_id",
+                "updates_collected",
+                "average_delay_seconds",
+                "maximum_observed_delay_seconds",
+                "minimum_observed_delay_seconds",
+                "p95_delay_seconds",
+                "snapshots_observed",
+            ]
+        )
     )
     stop_delay = (
         stops.groupby("stop_id", dropna=False)
@@ -73,7 +83,17 @@ def compute_historical_kpis(stop_updates: pd.DataFrame, feed_summary: pd.DataFra
         )
         .reset_index()
         if not stops.empty and "stop_id" in stops.columns
-        else pd.DataFrame(columns=["stop_id", "updates_collected", "average_delay_seconds", "maximum_observed_delay_seconds", "minimum_observed_delay_seconds", "p95_delay_seconds", "snapshots_observed"])
+        else pd.DataFrame(
+            columns=[
+                "stop_id",
+                "updates_collected",
+                "average_delay_seconds",
+                "maximum_observed_delay_seconds",
+                "minimum_observed_delay_seconds",
+                "p95_delay_seconds",
+                "snapshots_observed",
+            ]
+        )
     )
     delay_hour = (
         stops.groupby(["collection_date", "collection_hour"], dropna=False)
@@ -87,7 +107,18 @@ def compute_historical_kpis(stop_updates: pd.DataFrame, feed_summary: pd.DataFra
         )
         .reset_index()
         if not stops.empty and {"collection_date", "collection_hour"}.issubset(stops.columns)
-        else pd.DataFrame(columns=["collection_date", "collection_hour", "updates_collected", "average_delay_seconds", "maximum_observed_delay_seconds", "minimum_observed_delay_seconds", "p95_delay_seconds", "snapshots_observed"])
+        else pd.DataFrame(
+            columns=[
+                "collection_date",
+                "collection_hour",
+                "updates_collected",
+                "average_delay_seconds",
+                "maximum_observed_delay_seconds",
+                "minimum_observed_delay_seconds",
+                "p95_delay_seconds",
+                "snapshots_observed",
+            ]
+        )
     )
     feed_freshness = (
         summary.groupby(["collection_date", "collection_hour"], dropna=False)
@@ -101,7 +132,18 @@ def compute_historical_kpis(stop_updates: pd.DataFrame, feed_summary: pd.DataFra
         )
         .reset_index()
         if not summary.empty and {"collection_date", "collection_hour"}.issubset(summary.columns)
-        else pd.DataFrame(columns=["collection_date", "collection_hour", "snapshots_collected", "average_feed_age_seconds", "maximum_feed_age_seconds", "minimum_feed_age_seconds", "parsed_entities", "skipped_entities"])
+        else pd.DataFrame(
+            columns=[
+                "collection_date",
+                "collection_hour",
+                "snapshots_collected",
+                "average_feed_age_seconds",
+                "maximum_feed_age_seconds",
+                "minimum_feed_age_seconds",
+                "parsed_entities",
+                "skipped_entities",
+            ]
+        )
     )
     trip_match = (
         stops.groupby(["collection_date", "collection_hour"], dropna=False)
@@ -114,7 +156,17 @@ def compute_historical_kpis(stop_updates: pd.DataFrame, feed_summary: pd.DataFra
         )
         .reset_index()
         if not stops.empty and {"collection_date", "collection_hour"}.issubset(stops.columns)
-        else pd.DataFrame(columns=["collection_date", "collection_hour", "updates_collected", "distinct_trips_observed", "distinct_routes_observed", "distinct_stops_observed", "snapshots_observed"])
+        else pd.DataFrame(
+            columns=[
+                "collection_date",
+                "collection_hour",
+                "updates_collected",
+                "distinct_trips_observed",
+                "distinct_routes_observed",
+                "distinct_stops_observed",
+                "snapshots_observed",
+            ]
+        )
     )
     daily_summary = (
         stops.groupby("collection_date", dropna=False)
@@ -130,7 +182,19 @@ def compute_historical_kpis(stop_updates: pd.DataFrame, feed_summary: pd.DataFra
         )
         .reset_index()
         if not stops.empty and "collection_date" in stops.columns
-        else pd.DataFrame(columns=["collection_date", "updates_collected", "average_delay_seconds", "maximum_observed_delay_seconds", "minimum_observed_delay_seconds", "p95_delay_seconds", "snapshots_observed", "distinct_routes_observed", "distinct_stops_observed"])
+        else pd.DataFrame(
+            columns=[
+                "collection_date",
+                "updates_collected",
+                "average_delay_seconds",
+                "maximum_observed_delay_seconds",
+                "minimum_observed_delay_seconds",
+                "p95_delay_seconds",
+                "snapshots_observed",
+                "distinct_routes_observed",
+                "distinct_stops_observed",
+            ]
+        )
     )
     for frame in (route_delay, stop_delay, delay_hour, feed_freshness, trip_match, daily_summary):
         for column in frame.select_dtypes(include=["float"]).columns:

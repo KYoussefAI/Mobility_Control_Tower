@@ -7,9 +7,8 @@ flowchart TD
     RAW --> PARSE[Protobuf parser]
     PARSE --> PARQUET[data/realtime_history/date/hour/snapshot_timestamp/*.parquet]
     PARQUET --> DBT[dbt historical marts]
-    DBT --> GE[Great Expectations history suite]
-    GE --> DUCK[DuckDB history views]
+    DBT --> QC[MCT Quality Contracts history suite]
+    QC --> DUCK[DuckDB history views]
     DUCK --> API[History API endpoints]
     API --> DASH[Historical Analytics dashboard]
 ```
-

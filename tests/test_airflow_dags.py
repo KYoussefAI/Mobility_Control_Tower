@@ -6,7 +6,6 @@ import sys
 import types
 from pathlib import Path
 
-
 AIRFLOW_DAGS = Path(__file__).resolve().parents[1] / "airflow" / "dags"
 
 
@@ -60,11 +59,18 @@ def install_fake_airflow(monkeypatch, variables: dict[str, str] | None = None):
     operators = types.ModuleType("airflow.operators")
     python = types.ModuleType("airflow.operators.python")
     python.PythonOperator = FakePythonOperator
+    exceptions = types.ModuleType("airflow.exceptions")
+
+    class FakeAirflowSkipException(Exception):
+        pass
+
+    exceptions.AirflowSkipException = FakeAirflowSkipException
     models = types.ModuleType("airflow.models")
     models.Variable = FakeVariable
     monkeypatch.setitem(sys.modules, "airflow", airflow)
     monkeypatch.setitem(sys.modules, "airflow.operators", operators)
     monkeypatch.setitem(sys.modules, "airflow.operators.python", python)
+    monkeypatch.setitem(sys.modules, "airflow.exceptions", exceptions)
     monkeypatch.setitem(sys.modules, "airflow.models", models)
     monkeypatch.syspath_prepend(str(AIRFLOW_DAGS))
     return FakeVariable
@@ -89,8 +95,7 @@ def test_daily_static_dag_loads_with_expected_dependencies_and_retries(monkeypat
         "build_silver",
         "validate_gtfs",
         "run_dbt_models",
-        "test_dbt_models",
-        "validate_with_ge",
+        "validate_with_quality_contracts",
         "generate_static_charts",
         "generate_demo_report",
         "build_serving_db",
@@ -98,9 +103,8 @@ def test_daily_static_dag_loads_with_expected_dependencies_and_retries(monkeypat
     assert dag.task_dict["ingest_gtfs"].downstream_task_ids == {"profile_gtfs"}
     assert dag.task_dict["profile_gtfs"].downstream_task_ids == {"build_bronze"}
     assert dag.task_dict["validate_gtfs"].downstream_task_ids == {"run_dbt_models"}
-    assert dag.task_dict["run_dbt_models"].downstream_task_ids == {"test_dbt_models"}
-    assert dag.task_dict["test_dbt_models"].downstream_task_ids == {"validate_with_ge"}
-    assert dag.task_dict["validate_with_ge"].downstream_task_ids == {"generate_static_charts"}
+    assert dag.task_dict["run_dbt_models"].downstream_task_ids == {"validate_with_quality_contracts"}
+    assert dag.task_dict["validate_with_quality_contracts"].downstream_task_ids == {"generate_static_charts"}
     assert dag.task_dict["generate_demo_report"].downstream_task_ids == {"build_serving_db"}
     assert all(task.retries == 3 for task in dag.task_dict.values())
 
@@ -110,13 +114,26 @@ def test_realtime_dag_loads_with_expected_dependencies_and_schedule(monkeypatch)
     module = fresh_import("realtime_collection")
     dag = module.dag
 
-    assert dag.dag_id == "realtime_collection"
+    assert dag.dag_id == "realtime_snapshot_collection"
     assert dag.schedule_interval == "* * * * *"
     assert dag.kwargs["max_active_runs"] == 1
-    assert dag.task_dict["collect_gtfs_rt"].downstream_task_ids == {"run_dbt_history"}
-    assert dag.task_dict["run_dbt_history"].downstream_task_ids == {"validate_history_with_ge"}
-    assert dag.task_dict["validate_history_with_ge"].downstream_task_ids == {"build_serving_db_history"}
-    assert dag.task_dict["build_serving_db_history"].upstream_task_ids == {"validate_history_with_ge"}
+    assert list(dag.task_dict) == ["collect_gtfs_rt"]
+    assert dag.task_dict["collect_gtfs_rt"].downstream_task_ids == set()
+
+
+def test_incremental_refresh_dag_loads_with_expected_dependencies(monkeypatch) -> None:
+    install_fake_airflow(monkeypatch)
+    module = fresh_import("realtime_incremental_refresh")
+    dag = module.dag
+
+    assert dag.dag_id == "realtime_incremental_refresh"
+    assert dag.schedule_interval == "*/10 * * * *"
+    assert dag.kwargs["max_active_runs"] == 1
+    assert dag.task_dict["discover_new_snapshots"].downstream_task_ids == {"run_dbt_history"}
+    assert dag.task_dict["run_dbt_history"].downstream_task_ids == {"validate_recent_quality"}
+    assert dag.task_dict["validate_recent_quality"].downstream_task_ids == {"publish_serving_refresh"}
+    assert dag.task_dict["publish_serving_refresh"].downstream_task_ids == {"evaluate_reliability_incidents"}
+    assert dag.task_dict["evaluate_reliability_incidents"].downstream_task_ids == {"advance_refresh_watermark"}
 
 
 def test_airflow_variables_are_used_for_pipeline_context(monkeypatch, tmp_path: Path) -> None:

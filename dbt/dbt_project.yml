@@ -14,8 +14,8 @@ target-path: "target"
 clean-targets: ["target", "dbt_packages"]
 
 vars:
-  silver_run: "../data/silver/tisseo/2026-07-17_160355"
-  history_run: "../data/realtime_history/tisseo/trip_updates"
+  silver_run: "../data/fixtures/silver/tisseo/phase1"
+  history_run: "../data/fixtures/realtime_history/tisseo/trip_updates"
 
 models:
   mobility_control_tower:
@@ -25,4 +25,3 @@ models:
       +materialized: view
     marts:
       +materialized: table
-

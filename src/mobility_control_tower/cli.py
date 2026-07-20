@@ -3,28 +3,33 @@
 from __future__ import annotations
 
 import argparse
+import json
 import logging
 import os
 import subprocess
 import sys
+import warnings
+from datetime import datetime
 from pathlib import Path
 
 import uvicorn
 
-from mobility_control_tower.analytics_engineering import generate_dbt_docs, run_dbt, run_ge_validation, test_dbt
+from mobility_control_tower.analytics_engineering import generate_dbt_docs, run_dbt, run_ge_validation, run_quality_validation, test_dbt
 from mobility_control_tower.api.app import create_app
 from mobility_control_tower.api.report import generate_api_report
 from mobility_control_tower.benchmarking import run_benchmarks
 from mobility_control_tower.config import load_source
 from mobility_control_tower.core.exceptions import cli_failure_message
 from mobility_control_tower.core.logging import configure_logging
+from mobility_control_tower.incidents import IncidentEvaluationEngine, IncidentStore, evaluation_result_to_dict, migrate_incident_store
 from mobility_control_tower.ingestion.gtfs_raw import download_and_preserve_gtfs, preserve_gtfs_zip
 from mobility_control_tower.metrics.gtfs_kpis import build_gold
 from mobility_control_tower.metrics.historical_kpis import build_historical_kpis
+from mobility_control_tower.observability_exporter import create_metrics_exporter_app
 from mobility_control_tower.profiling.gtfs_profile import profile_raw_run
 from mobility_control_tower.quality.gtfs_quality import validate_silver_run
-from mobility_control_tower.realtime.gtfs_rt_compatibility import check_realtime_compatibility
 from mobility_control_tower.realtime.gtfs_rt_charts import generate_rt_charts
+from mobility_control_tower.realtime.gtfs_rt_compatibility import check_realtime_compatibility
 from mobility_control_tower.realtime.gtfs_rt_kpis import build_rt_gold
 from mobility_control_tower.realtime.gtfs_rt_parser import parse_realtime_snapshot
 from mobility_control_tower.realtime.gtfs_rt_raw import FEED_TYPES, fetch_realtime_snapshot
@@ -38,7 +43,6 @@ from mobility_control_tower.serving.duckdb_loader import build_serving_database,
 from mobility_control_tower.serving.serving_report import generate_serving_report
 from mobility_control_tower.transformations.gtfs_bronze import build_bronze
 from mobility_control_tower.transformations.gtfs_silver import build_silver
-
 
 logger = logging.getLogger(__name__)
 
@@ -74,7 +78,7 @@ def build_parser() -> argparse.ArgumentParser:
     validate.add_argument("--silver-run", type=Path, required=True)
     validate.add_argument("--reports-dir", type=Path, default=Path("data/reports"))
 
-    gold = commands.add_parser("build-gold", help="Build static-schedule KPI tables from silver GTFS")
+    gold = commands.add_parser("build-gold", help="LEGACY diagnostic: build Python static-schedule KPI tables from silver GTFS")
     gold.add_argument("--silver-run", type=Path, required=True)
     gold.add_argument("--gold-root", type=Path, default=Path("data/gold"))
 
@@ -156,12 +160,20 @@ def build_parser() -> argparse.ArgumentParser:
     dbt_docs.add_argument("--profiles-dir", type=Path, default=Path("dbt"))
     dbt_docs.add_argument("--no-installed-dbt", action="store_true")
 
-    ge_validation = commands.add_parser("run-ge-validation", help="Run Great Expectations validation over Silver, Gold, and history")
+    quality_validation = commands.add_parser("run-quality-validation", help="Run MCT quality-contract validation over Silver, dbt Gold, and history")
+    quality_validation.add_argument("--suite", choices=["all", "silver", "gold", "history"], default="all")
+    quality_validation.add_argument("--silver-run", type=Path)
+    quality_validation.add_argument("--gold-run", type=Path)
+    quality_validation.add_argument("--history-run", type=Path)
+    quality_validation.add_argument("--quality-contracts-root", "--ge-root", dest="ge_root", type=Path, default=Path("quality_contracts"))
+    quality_validation.add_argument("--quality-root", type=Path, default=Path("data/quality"))
+
+    ge_validation = commands.add_parser("run-ge-validation", help="LEGACY alias for run-quality-validation")
     ge_validation.add_argument("--suite", choices=["all", "silver", "gold", "history"], default="all")
     ge_validation.add_argument("--silver-run", type=Path)
     ge_validation.add_argument("--gold-run", type=Path)
     ge_validation.add_argument("--history-run", type=Path)
-    ge_validation.add_argument("--ge-root", type=Path, default=Path("great_expectations"))
+    ge_validation.add_argument("--quality-contracts-root", "--ge-root", dest="ge_root", type=Path, default=Path("quality_contracts"))
     ge_validation.add_argument("--quality-root", type=Path, default=Path("data/quality"))
 
     benchmark = commands.add_parser("run-benchmarks", help="Run local performance benchmarks over existing artifacts")
@@ -179,6 +191,8 @@ def build_parser() -> argparse.ArgumentParser:
     serving.add_argument("--serving-root", type=Path, default=Path("data/serving"))
     serving.add_argument("--history-run", type=Path)
     serving.add_argument("--history-gold-run", type=Path)
+    serving.add_argument("--quality-status", default="unknown")
+    serving.add_argument("--serving-run-id")
 
     serving_query = commands.add_parser("query-serving-db", help="Run a predefined query against the serving DuckDB database")
     serving_query.add_argument("--db", type=Path, required=True)
@@ -190,9 +204,50 @@ def build_parser() -> argparse.ArgumentParser:
     serving_report.add_argument("--reports-dir", type=Path, default=Path("data/reports"))
 
     api = commands.add_parser("serve-api", help="Start the local read-only FastAPI server")
-    api.add_argument("--db", type=Path, required=True)
+    api.add_argument("--db", type=Path)
+    api.add_argument("--source", default="tisseo")
+    api.add_argument("--serving-root", type=Path, default=Path("data/serving"))
     api.add_argument("--host", default="127.0.0.1")
     api.add_argument("--port", type=int, default=8000)
+
+    metrics_exporter = commands.add_parser("serve-metrics", help="Start the durable MCT Prometheus metrics exporter")
+    metrics_exporter.add_argument("--source", default="tisseo")
+    metrics_exporter.add_argument("--feed-type", default="trip_updates")
+    metrics_exporter.add_argument("--serving-root", type=Path, default=Path("data/serving"))
+    metrics_exporter.add_argument("--history-root", type=Path, default=Path("data/realtime_history"))
+    metrics_exporter.add_argument("--watermark-root", type=Path, default=Path("data/watermarks"))
+    metrics_exporter.add_argument("--quality-root", type=Path, default=Path("data/quality"))
+    metrics_exporter.add_argument("--host", default="127.0.0.1")
+    metrics_exporter.add_argument("--port", type=int, default=9108)
+
+    migrate_incidents = commands.add_parser("migrate-incident-store", help="Apply incident-store migrations")
+    migrate_incidents.add_argument("--incident-root", type=Path, default=Path("data/incidents"))
+    migrate_incidents.add_argument("--json", action="store_true")
+
+    evaluate_incidents = commands.add_parser("evaluate-incidents", help="Evaluate incident rules from authoritative serving outputs")
+    evaluate_incidents.add_argument("--source")
+    evaluate_incidents.add_argument("--evaluation-time")
+    evaluate_incidents.add_argument("--correlation-id")
+    evaluate_incidents.add_argument("--dry-run", action="store_true")
+    evaluate_incidents.add_argument("--json", action="store_true")
+    evaluate_incidents.add_argument("--incident-root", type=Path, default=Path("data/incidents"))
+    evaluate_incidents.add_argument("--serving-root", type=Path, default=Path("data/serving"))
+    evaluate_incidents.add_argument("--history-root", type=Path, default=Path("data/realtime_history"))
+    evaluate_incidents.add_argument("--quality-root", type=Path, default=Path("data/quality"))
+
+    list_incidents = commands.add_parser("list-incidents", help="List persisted incidents")
+    list_incidents.add_argument("--source")
+    list_incidents.add_argument("--status")
+    list_incidents.add_argument("--rule")
+    list_incidents.add_argument("--severity")
+    list_incidents.add_argument("--limit", type=int, default=100)
+    list_incidents.add_argument("--json", action="store_true")
+    list_incidents.add_argument("--incident-root", type=Path, default=Path("data/incidents"))
+
+    show_incident = commands.add_parser("show-incident", help="Show one incident and its event history")
+    show_incident.add_argument("--incident-id", required=True)
+    show_incident.add_argument("--json", action="store_true")
+    show_incident.add_argument("--incident-root", type=Path, default=Path("data/incidents"))
 
     api_report = commands.add_parser("generate-api-report", help="Generate a Markdown report for the local API")
     api_report.add_argument("--db", type=Path, required=True)
@@ -236,6 +291,11 @@ def main() -> None:
             _info(f"JSON quality report written to: {json_path}")
             _info(f"Markdown quality report written to: {markdown_path}")
         elif args.command == "build-gold":
+            warnings.warn(
+                "build-gold is a legacy diagnostic command. Production Gold marts are built by run-dbt.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
             run_dir = build_gold(args.silver_run, args.gold_root)
             _info(f"Gold KPI tables written to: {run_dir}")
             _info(f"Manifest written to: {run_dir / 'gold_manifest.json'}")
@@ -308,8 +368,15 @@ def main() -> None:
         elif args.command == "generate-dbt-docs":
             docs_path = generate_dbt_docs(args.project_dir, args.profiles_dir, use_installed=not args.no_installed_dbt)
             _info(f"dbt docs generated at: {docs_path}")
-        elif args.command == "run-ge-validation":
-            result_path = run_ge_validation(
+        elif args.command in {"run-quality-validation", "run-ge-validation"}:
+            if args.command == "run-ge-validation":
+                warnings.warn(
+                    "run-ge-validation is a legacy alias. Use run-quality-validation for MCT quality contracts.",
+                    DeprecationWarning,
+                    stacklevel=2,
+                )
+            runner = run_ge_validation if args.command == "run-ge-validation" else run_quality_validation
+            result_path = runner(
                 suite_name=args.suite,
                 silver_run=args.silver_run,
                 gold_run=args.gold_run,
@@ -317,7 +384,7 @@ def main() -> None:
                 ge_root=args.ge_root,
                 quality_root=args.quality_root,
             )
-            _info(f"Great Expectations validation written to: {result_path}")
+            _info(f"MCT quality validation written to: {result_path}")
             _info(f"Latest validation summary written to: {args.quality_root / 'latest_validation_summary.json'}")
         elif args.command == "run-benchmarks":
             report_path = run_benchmarks(
@@ -331,7 +398,15 @@ def main() -> None:
             )
             _info(f"Benchmark report written to: {report_path}")
         elif args.command == "build-serving-db":
-            serving_run = build_serving_database(args.gold_run, args.rt_gold_run, args.serving_root, history_run=args.history_run, history_gold_run=args.history_gold_run)
+            serving_run = build_serving_database(
+                args.gold_run,
+                args.rt_gold_run,
+                args.serving_root,
+                history_run=args.history_run,
+                history_gold_run=args.history_gold_run,
+                quality_status=args.quality_status,
+                serving_run_id=args.serving_run_id,
+            )
             _info(f"Serving database written to: {serving_run / 'mobility_control_tower.duckdb'}")
             _info(f"Manifest written to: {serving_run / 'serving_manifest.json'}")
         elif args.command == "query-serving-db":
@@ -341,8 +416,64 @@ def main() -> None:
             report_path = generate_serving_report(args.serving_run, args.reports_dir)
             _info(f"Serving report written to: {report_path}")
         elif args.command == "serve-api":
-            app = create_app(args.db)
+            app = create_app(args.db, source=args.source, serving_root=args.serving_root)
             uvicorn.run(app, host=args.host, port=args.port)
+        elif args.command == "serve-metrics":
+            app = create_metrics_exporter_app(
+                source=args.source,
+                feed_type=args.feed_type,
+                serving_root=args.serving_root,
+                history_root=args.history_root,
+                watermark_root=args.watermark_root,
+                quality_root=args.quality_root,
+            )
+            uvicorn.run(app, host=args.host, port=args.port)
+        elif args.command == "migrate-incident-store":
+            migration_result = migrate_incident_store(args.incident_root)
+            if getattr(args, "json", False):
+                print(json.dumps(migration_result, indent=2, sort_keys=True))
+            else:
+                _info(
+                    "Incident store migrated: "
+                    f"backend={migration_result['backend']} target={migration_result['target']} "
+                    f"schema={migration_result['ending_schema_version']} status={migration_result['status']}"
+                )
+        elif args.command == "evaluate-incidents":
+            evaluation_time = datetime.fromisoformat(args.evaluation_time.replace("Z", "+00:00")) if args.evaluation_time else None
+            engine = IncidentEvaluationEngine(
+                repository=IncidentStore(args.incident_root).repository,
+                serving_root=args.serving_root,
+                history_root=args.history_root,
+                quality_root=args.quality_root,
+            )
+            result = engine.evaluate(source=args.source, evaluation_time=evaluation_time, correlation_id=args.correlation_id, dry_run=args.dry_run)
+            payload = evaluation_result_to_dict(result)
+            if args.json:
+                print(json.dumps(payload, indent=2, sort_keys=True))
+            else:
+                _info(
+                    f"Incident evaluation {result.status}: {result.candidate_count} candidates, "
+                    f"{result.opened_count} opened, {result.updated_count} updated, {result.resolved_count} resolved"
+                )
+        elif args.command == "list-incidents":
+            store = IncidentStore(args.incident_root)
+            rows = store.list_incidents(status=args.status, source=args.source, rule_id=args.rule, severity=args.severity, limit=args.limit)
+            payload = {"data": rows, "count": len(rows), "source": args.source or "all"}
+            if args.json:
+                print(json.dumps(payload, indent=2, sort_keys=True, default=str))
+            else:
+                for row in rows:
+                    _info(f"{row['incident_id']} {row['status']} {row['severity']} {row['rule_id']} {row['source']} {row['title']}")
+        elif args.command == "show-incident":
+            store = IncidentStore(args.incident_root)
+            incident_row = store.get_by_id(args.incident_id)
+            if incident_row is None:
+                raise ValueError(f"Incident not found: {args.incident_id}")
+            payload = {"data": [incident_row], "events": store.list_events(args.incident_id), "count": 1}
+            if args.json:
+                print(json.dumps(payload, indent=2, sort_keys=True, default=str))
+            else:
+                _info(json.dumps(payload, indent=2, sort_keys=True, default=str))
         elif args.command == "generate-api-report":
             report_path = generate_api_report(args.db, args.reports_dir)
             _info(f"API report written to: {report_path}")

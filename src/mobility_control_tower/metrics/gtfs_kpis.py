@@ -12,16 +12,41 @@ import pandas as pd
 
 from mobility_control_tower.transformations.gtfs_silver import parse_gtfs_time
 
-
 WEEKDAYS = ("monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday")
 OUTPUT_COLUMNS = {
     "route_daily_trips": ["service_date", "route_id", "route_short_name", "route_long_name", "route_type", "scheduled_trips_count"],
     "route_hourly_departures": ["service_date", "route_id", "route_short_name", "route_long_name", "departure_hour", "scheduled_departures_count"],
     "stop_daily_departures": ["service_date", "stop_id", "stop_name", "scheduled_departures_count"],
     "network_daily_summary": ["service_date", "active_routes_count", "scheduled_trips_count", "scheduled_stop_departures_count", "active_stops_count"],
-    "route_period_summary": ["route_id", "route_short_name", "route_long_name", "route_type", "active_service_days", "total_scheduled_trips", "average_trips_per_active_day", "max_daily_trips", "first_service_date", "last_service_date"],
-    "route_hourly_headway": ["service_date", "route_id", "route_short_name", "route_long_name", "departure_hour", "scheduled_departures_count", "planned_headway_minutes"],
-    "route_type_daily_summary": ["service_date", "route_type", "route_type_label", "active_routes_count", "scheduled_trips_count", "scheduled_stop_departures_count"],
+    "route_period_summary": [
+        "route_id",
+        "route_short_name",
+        "route_long_name",
+        "route_type",
+        "active_service_days",
+        "total_scheduled_trips",
+        "average_trips_per_active_day",
+        "max_daily_trips",
+        "first_service_date",
+        "last_service_date",
+    ],
+    "route_hourly_headway": [
+        "service_date",
+        "route_id",
+        "route_short_name",
+        "route_long_name",
+        "departure_hour",
+        "scheduled_departures_count",
+        "planned_headway_minutes",
+    ],
+    "route_type_daily_summary": [
+        "service_date",
+        "route_type",
+        "route_type_label",
+        "active_routes_count",
+        "scheduled_trips_count",
+        "scheduled_stop_departures_count",
+    ],
     "busiest_route_day": ["service_date", "route_id", "route_short_name", "route_long_name", "scheduled_trips_count", "rank"],
     "busiest_stop_day": ["service_date", "stop_id", "stop_name", "scheduled_departures_count", "rank"],
 }
@@ -76,7 +101,7 @@ def expand_service_dates(
         if missing:
             raise ValueError(f"calendar_dates.csv is missing columns required for date expansion: {', '.join(missing)}")
         dates = _parse_date_series(calendar_dates["date"])
-        for row, parsed_date in zip(calendar_dates.to_dict("records"), dates):
+        for row, parsed_date in zip(calendar_dates.to_dict("records"), dates, strict=True):
             if pd.isna(parsed_date):
                 continue
             key = (str(row["service_id"]), parsed_date.date().isoformat())
@@ -126,7 +151,9 @@ def compute_gold_tables(tables: dict[str, pd.DataFrame]) -> dict[str, pd.DataFra
 
     trips_by_service = trip_base.groupby(["service_id", "route_id"], as_index=False).size().rename(columns={"size": "scheduled_trips_count"})
     route_daily = service_dates.merge(trips_by_service, on="service_id", how="inner").merge(route_info, on="route_id", how="left")
-    route_daily = route_daily.groupby(["service_date", "route_id", "route_short_name", "route_long_name", "route_type"], as_index=False, dropna=False)["scheduled_trips_count"].sum()
+    route_daily = route_daily.groupby(["service_date", "route_id", "route_short_name", "route_long_name", "route_type"], as_index=False, dropna=False)[
+        "scheduled_trips_count"
+    ].sum()
     route_daily = route_daily[OUTPUT_COLUMNS["route_daily_trips"]].sort_values(["service_date", "route_id"]).reset_index(drop=True)
 
     stop_times["_stop_sequence"] = pd.to_numeric(stop_times["stop_sequence"], errors="coerce")
@@ -138,21 +165,34 @@ def compute_gold_tables(tables: dict[str, pd.DataFrame]) -> dict[str, pd.DataFra
     first_stops = first_stops.assign(departure_hour=(seconds // 3600).astype("Int64"))
     first_stops = first_stops.dropna(subset=["departure_hour"])
     hourly_base = first_stops[["trip_id", "departure_hour"]].merge(trip_base, on="trip_id", how="inner")
-    hourly_service = hourly_base.groupby(["service_id", "route_id", "departure_hour"], as_index=False).size().rename(columns={"size": "scheduled_departures_count"})
+    hourly_service = (
+        hourly_base.groupby(["service_id", "route_id", "departure_hour"], as_index=False).size().rename(columns={"size": "scheduled_departures_count"})
+    )
     route_hourly = service_dates.merge(hourly_service, on="service_id", how="inner").merge(route_info, on="route_id", how="left")
     route_hourly["departure_hour"] = route_hourly["departure_hour"].astype(int)
-    route_hourly = route_hourly.groupby(["service_date", "route_id", "route_short_name", "route_long_name", "departure_hour"], as_index=False, dropna=False)["scheduled_departures_count"].sum()
+    route_hourly = route_hourly.groupby(["service_date", "route_id", "route_short_name", "route_long_name", "departure_hour"], as_index=False, dropna=False)[
+        "scheduled_departures_count"
+    ].sum()
     route_hourly = route_hourly[OUTPUT_COLUMNS["route_hourly_departures"]].sort_values(["service_date", "route_id", "departure_hour"]).reset_index(drop=True)
 
     departures = stop_times.loc[stop_times["departure_time"].str.strip().ne(""), ["trip_id", "stop_id"]]
-    stop_service = departures.merge(trip_base[["trip_id", "service_id"]], on="trip_id", how="inner").groupby(["service_id", "stop_id"], as_index=False).size().rename(columns={"size": "scheduled_departures_count"})
+    stop_service = (
+        departures.merge(trip_base[["trip_id", "service_id"]], on="trip_id", how="inner")
+        .groupby(["service_id", "stop_id"], as_index=False)
+        .size()
+        .rename(columns={"size": "scheduled_departures_count"})
+    )
     stop_names = stops[["stop_id", "stop_name"]].drop_duplicates("stop_id")
     stop_daily = service_dates.merge(stop_service, on="service_id", how="inner").merge(stop_names, on="stop_id", how="left")
     stop_daily = stop_daily.groupby(["service_date", "stop_id", "stop_name"], as_index=False, dropna=False)["scheduled_departures_count"].sum()
     stop_daily = stop_daily[OUTPUT_COLUMNS["stop_daily_departures"]].sort_values(["service_date", "stop_id"]).reset_index(drop=True)
 
-    route_summary = route_daily.groupby("service_date", as_index=False).agg(active_routes_count=("route_id", "nunique"), scheduled_trips_count=("scheduled_trips_count", "sum"))
-    stop_summary = stop_daily.groupby("service_date", as_index=False).agg(scheduled_stop_departures_count=("scheduled_departures_count", "sum"), active_stops_count=("stop_id", "nunique"))
+    route_summary = route_daily.groupby("service_date", as_index=False).agg(
+        active_routes_count=("route_id", "nunique"), scheduled_trips_count=("scheduled_trips_count", "sum")
+    )
+    stop_summary = stop_daily.groupby("service_date", as_index=False).agg(
+        scheduled_stop_departures_count=("scheduled_departures_count", "sum"), active_stops_count=("stop_id", "nunique")
+    )
     network_daily = route_summary.merge(stop_summary, on="service_date", how="outer").fillna(0)
     for column in OUTPUT_COLUMNS["network_daily_summary"][1:]:
         network_daily[column] = network_daily[column].astype(int)
@@ -169,22 +209,32 @@ def compute_gold_tables(tables: dict[str, pd.DataFrame]) -> dict[str, pd.DataFra
     route_period["average_trips_per_active_day"] = route_period["average_trips_per_active_day"].round(2)
     for column in ("active_service_days", "total_scheduled_trips", "max_daily_trips"):
         route_period[column] = route_period[column].astype(int)
-    route_period = route_period[OUTPUT_COLUMNS["route_period_summary"]].sort_values(["total_scheduled_trips", "route_id"], ascending=[False, True]).reset_index(drop=True)
+    route_period = (
+        route_period[OUTPUT_COLUMNS["route_period_summary"]].sort_values(["total_scheduled_trips", "route_id"], ascending=[False, True]).reset_index(drop=True)
+    )
 
     route_hourly_headway = route_hourly.copy()
-    route_hourly_headway["planned_headway_minutes"] = 60 / route_hourly_headway["scheduled_departures_count"].where(route_hourly_headway["scheduled_departures_count"] > 0)
+    route_hourly_headway["planned_headway_minutes"] = 60 / route_hourly_headway["scheduled_departures_count"].where(
+        route_hourly_headway["scheduled_departures_count"] > 0
+    )
     route_hourly_headway["planned_headway_minutes"] = route_hourly_headway["planned_headway_minutes"].round(2)
-    route_hourly_headway = route_hourly_headway[OUTPUT_COLUMNS["route_hourly_headway"]].sort_values(["service_date", "route_id", "departure_hour"]).reset_index(drop=True)
+    route_hourly_headway = (
+        route_hourly_headway[OUTPUT_COLUMNS["route_hourly_headway"]].sort_values(["service_date", "route_id", "departure_hour"]).reset_index(drop=True)
+    )
 
     trip_departures = departures.merge(trip_base, on="trip_id", how="inner").merge(route_info[["route_id", "route_type"]], on="route_id", how="left")
-    route_type_stop_service = trip_departures.groupby(["service_id", "route_type"], as_index=False, dropna=False).size().rename(columns={"size": "scheduled_stop_departures_count"})
+    route_type_stop_service = (
+        trip_departures.groupby(["service_id", "route_type"], as_index=False, dropna=False).size().rename(columns={"size": "scheduled_stop_departures_count"})
+    )
     route_type_stop_daily = service_dates.merge(route_type_stop_service, on="service_id", how="inner")
     route_type_stop_daily = route_type_stop_daily.groupby(["service_date", "route_type"], as_index=False, dropna=False)["scheduled_stop_departures_count"].sum()
     route_type_route_daily = route_daily.groupby(["service_date", "route_type"], as_index=False, dropna=False).agg(
         active_routes_count=("route_id", "nunique"),
         scheduled_trips_count=("scheduled_trips_count", "sum"),
     )
-    route_type_daily = route_type_route_daily.merge(route_type_stop_daily, on=["service_date", "route_type"], how="left").fillna({"scheduled_stop_departures_count": 0})
+    route_type_daily = route_type_route_daily.merge(route_type_stop_daily, on=["service_date", "route_type"], how="left").fillna(
+        {"scheduled_stop_departures_count": 0}
+    )
     route_type_daily["route_type_label"] = route_type_daily["route_type"].astype(str).map(ROUTE_TYPE_LABELS).fillna("Unknown")
     for column in ("active_routes_count", "scheduled_trips_count", "scheduled_stop_departures_count"):
         route_type_daily[column] = route_type_daily[column].astype(int)
@@ -232,11 +282,20 @@ def build_gold(silver_run: Path, gold_root: Path = Path("data/gold")) -> Path:
             "tables_created": manifest_tables,
             "kpi_definitions": {
                 "route_daily_trips": {"description": "Scheduled trips per service date and route.", "static_planning_only": True},
-                "route_hourly_departures": {"description": "Scheduled trip starts per service date, route, and service-day hour.", "static_planning_only": True},
+                "route_hourly_departures": {
+                    "description": "Scheduled trip starts per service date, route, and service-day hour.",
+                    "static_planning_only": True,
+                },
                 "stop_daily_departures": {"description": "Scheduled departures per service date and stop.", "static_planning_only": True},
-                "network_daily_summary": {"description": "Daily active routes, scheduled trips, scheduled stop departures, and active stops.", "static_planning_only": True},
+                "network_daily_summary": {
+                    "description": "Daily active routes, scheduled trips, scheduled stop departures, and active stops.",
+                    "static_planning_only": True,
+                },
                 "route_period_summary": {"description": "Route totals and averages over the GTFS service period.", "static_planning_only": True},
-                "route_hourly_headway": {"description": "Approximate planned headway in minutes from scheduled trip starts per route/hour.", "static_planning_only": True},
+                "route_hourly_headway": {
+                    "description": "Approximate planned headway in minutes from scheduled trip starts per route/hour.",
+                    "static_planning_only": True,
+                },
                 "route_type_daily_summary": {"description": "Daily scheduled activity summarized by GTFS route type.", "static_planning_only": True},
                 "busiest_route_day": {"description": "Top 50 route/day combinations by scheduled trips.", "static_planning_only": True},
                 "busiest_stop_day": {"description": "Top 50 stop/day combinations by scheduled departures.", "static_planning_only": True},

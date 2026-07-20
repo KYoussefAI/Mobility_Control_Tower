@@ -107,4 +107,3 @@ Use this API as the backend contract for a later dashboard or demonstration inte
     output = reports_dir / f"api_report_{_run_id_from_db_path(resolved)}.md"
     output.write_text(report, encoding="utf-8")
     return output
-

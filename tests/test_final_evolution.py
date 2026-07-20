@@ -18,7 +18,9 @@ def make_db(path: Path) -> Path:
     with duckdb.connect(str(path)) as connection:
         connection.execute("CREATE TABLE route_period_summary AS SELECT 'R1' AS route_id, 10 AS total_scheduled_trips")
         connection.execute("CREATE VIEW v_top_routes_static AS SELECT * FROM route_period_summary")
-        connection.execute("CREATE TABLE network_daily_summary AS SELECT '2026-01-01' AS service_date, 1 AS active_routes_count, 10 AS scheduled_trips_count, 20 AS scheduled_stop_departures_count, 2 AS active_stops_count")
+        connection.execute(
+            "CREATE TABLE network_daily_summary AS SELECT '2026-01-01' AS service_date, 1 AS active_routes_count, 10 AS scheduled_trips_count, 20 AS scheduled_stop_departures_count, 2 AS active_stops_count"
+        )
         connection.execute("CREATE VIEW v_network_overview AS SELECT * FROM network_daily_summary")
     return path
 

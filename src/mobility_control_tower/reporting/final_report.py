@@ -132,4 +132,3 @@ The project is ready for a local academic demonstration.
     output = reports_dir / f"final_project_report_{serving_run.name}.md"
     output.write_text(report, encoding="utf-8")
     return output
-

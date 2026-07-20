@@ -1,0 +1,72 @@
+unit_tests:
+  - name: network_daily_summary_no_fanout
+    model: network_daily_summary
+    given:
+      - input: ref('route_daily_trips')
+        rows:
+          - {service_date: "2026-01-05", route_id: "R1", route_short_name: "A", route_long_name: "Airport", route_type: "3", scheduled_trips_count: 2}
+          - {service_date: "2026-01-05", route_id: "R2", route_short_name: "M", route_long_name: "Metro", route_type: "1", scheduled_trips_count: 5}
+      - input: ref('stop_daily_departures')
+        rows:
+          - {service_date: "2026-01-05", stop_id: "S1", stop_name: "Central", scheduled_departures_count: 4}
+          - {service_date: "2026-01-05", stop_id: "S2", stop_name: "North", scheduled_departures_count: 6}
+          - {service_date: "2026-01-05", stop_id: "S3", stop_name: "South", scheduled_departures_count: 8}
+    expect:
+      rows:
+        - {service_date: "2026-01-05", active_routes_count: 2, scheduled_trips_count: 7, scheduled_stop_departures_count: 18, active_stops_count: 3}
+
+  - name: route_type_daily_summary_no_fanout
+    model: route_type_daily_summary
+    given:
+      - input: ref('route_daily_trips')
+        rows:
+          - {service_date: "2026-01-05", route_id: "R1", route_short_name: "A", route_long_name: "Airport", route_type: "3", scheduled_trips_count: 2}
+          - {service_date: "2026-01-05", route_id: "R2", route_short_name: "M", route_long_name: "Metro", route_type: "1", scheduled_trips_count: 5}
+      - input: ref('int_route_type_stop_departures')
+        rows:
+          - {service_date: "2026-01-05", route_type: "3", stop_id: "S1", scheduled_departures_count: 4}
+          - {service_date: "2026-01-05", route_type: "3", stop_id: "S2", scheduled_departures_count: 6}
+          - {service_date: "2026-01-05", route_type: "1", stop_id: "S2", scheduled_departures_count: 3}
+          - {service_date: "2026-01-05", route_type: "1", stop_id: "S3", scheduled_departures_count: 5}
+    expect:
+      rows:
+        - {service_date: "2026-01-05", route_type: "1", route_type_label: "Subway/Metro", active_routes_count: 1, scheduled_trips_count: 5, scheduled_stop_departures_count: 8}
+        - {service_date: "2026-01-05", route_type: "3", route_type_label: "Bus", active_routes_count: 1, scheduled_trips_count: 2, scheduled_stop_departures_count: 10}
+
+  - name: route_type_daily_summary_missing_labels_preserve_counts
+    model: route_type_daily_summary
+    given:
+      - input: ref('route_daily_trips')
+        rows:
+          - {service_date: "2026-01-06", route_id: "R3", route_short_name: "", route_long_name: "", route_type: "3", scheduled_trips_count: 1}
+      - input: ref('int_route_type_stop_departures')
+        rows:
+          - {service_date: "2026-01-06", route_type: "3", stop_id: "S9", scheduled_departures_count: 2}
+    expect:
+      rows:
+        - {service_date: "2026-01-06", route_type: "3", route_type_label: "Bus", active_routes_count: 1, scheduled_trips_count: 1, scheduled_stop_departures_count: 2}
+
+  - name: realtime_trip_coverage_missing_update_is_unobserved
+    model: realtime_trip_coverage
+    given:
+      - input: ref('int_realtime_eligible_scheduled_trips')
+        rows:
+          - {source: "tisseo", service_date: "2026-01-05", route_id: "R1", trip_id: "T1", direction_id: "", scheduled_start_time: "08:00:00", scheduled_start_seconds: 28800, service_period: "am_peak", static_run_id: "fixture", eligibility_status: "ELIGIBLE", eligibility_reason: "ok", calculation_version: "reliability_v1"}
+          - {source: "tisseo", service_date: "2026-01-05", route_id: "R1", trip_id: "T2", direction_id: "", scheduled_start_time: "08:10:00", scheduled_start_seconds: 29400, service_period: "am_peak", static_run_id: "fixture", eligibility_status: "ELIGIBLE", eligibility_reason: "ok", calculation_version: "reliability_v1"}
+      - input: ref('int_realtime_trip_observations')
+        rows:
+          - {source: "tisseo", snapshot_id: "s1", snapshot_timestamp: "s1", collection_time: "2026-01-05 08:00:00", feed_header_timestamp: "2026-01-05T07:59:30+00:00", service_date: "2026-01-05", route_id: "R1", trip_id: "T1", direction_id: "", schedule_relationship: "SCHEDULED", match_status: "EXACT", match_method: "SOURCE_TRIP_ID", match_confidence: 1.0, matched_static_run_id: "fixture", is_explicitly_canceled: false, has_usable_delay: true, latest_observed_delay_seconds: 0, observation_key: "obs1", calculation_version: "reliability_v1"}
+    expect:
+      rows:
+        - {source: "tisseo", service_date: "2026-01-05", route_id: "R1", service_period: "am_peak", feed_type: "trip_updates", calculation_version: "reliability_v1", eligible_scheduled_trip_count: 2, observed_eligible_trip_count: 1, unobserved_eligible_trip_count: 1, unmatched_realtime_trip_count: 0, ambiguous_realtime_trip_count: 0, explicit_cancellation_count: 0, coverage_percentage: 50.0, coverage_status: "OBSERVED", confidence_status: "LOW"}
+
+  - name: explicit_cancellation_dedupes_repeated_snapshots
+    model: fct_explicit_trip_cancellations
+    given:
+      - input: ref('int_realtime_trip_observations')
+        rows:
+          - {source: "tisseo", snapshot_id: "s1", snapshot_timestamp: "s1", collection_time: "2026-01-05 08:00:00", feed_header_timestamp: "2026-01-05T07:59:30+00:00", service_date: "2026-01-05", route_id: "R1", trip_id: "T2", direction_id: "", schedule_relationship: "CANCELED", match_status: "EXACT", match_method: "SOURCE_TRIP_ID", match_confidence: 1.0, matched_static_run_id: "fixture", is_explicitly_canceled: true, has_usable_delay: false, latest_observed_delay_seconds: null, observation_key: "obs1", calculation_version: "reliability_v1"}
+          - {source: "tisseo", snapshot_id: "s2", snapshot_timestamp: "s2", collection_time: "2026-01-05 08:05:00", feed_header_timestamp: "2026-01-05T08:04:30+00:00", service_date: "2026-01-05", route_id: "R1", trip_id: "T2", direction_id: "", schedule_relationship: "CANCELED", match_status: "EXACT", match_method: "SOURCE_TRIP_ID", match_confidence: 1.0, matched_static_run_id: "fixture", is_explicitly_canceled: true, has_usable_delay: false, latest_observed_delay_seconds: null, observation_key: "obs2", calculation_version: "reliability_v1"}
+    expect:
+      rows:
+        - {source: "tisseo", service_date: "2026-01-05", route_id: "R1", trip_id: "T2", cancellation_evidence_key: "aee7738607d65d7cb68905640480c896", first_seen_at: "2026-01-05 08:00:00", last_seen_at: "2026-01-05 08:05:00", first_snapshot_id: "s1", last_snapshot_id: "s2", schedule_relationship: "CANCELED", evidence_type: "GTFS_RT_TRIP_SCHEDULE_RELATIONSHIP_CANCELED", match_status: "EXACT", matched_static_run_id: "fixture", related_alert_id: null, calculation_version: "reliability_v1"}

@@ -8,8 +8,7 @@ from typing import Any
 import pandas as pd
 import streamlit as st
 
-from mobility_control_tower.dashboard.api_client import fetch_dashboard_data
-
+from mobility_control_tower.dashboard.api_client import fetch_dashboard_data, get_json, post_json
 
 DEFAULT_API_URL = "http://127.0.0.1:8000"
 
@@ -32,19 +31,113 @@ def _table(title: str, payload: dict[str, Any]) -> pd.DataFrame:
     return frame
 
 
+def _payload(data: dict[str, dict[str, Any]], key: str) -> dict[str, Any]:
+    return data.get(key, {"ok": True, "data": [], "count": 0})
+
+
 def main() -> None:
     st.set_page_config(page_title="Mobility Control Tower", layout="wide")
-    st.title("Mobility Control Tower - Local Demo")
-    st.caption("Local academic MVP: static planning KPIs, GTFS-Realtime snapshot indicators, DuckDB serving, and read-only API.")
+    st.title("Mobility Control Tower")
+    st.caption("Near-realtime public transport monitoring from validated schedule and GTFS-Realtime evidence.")
 
     api_url = st.sidebar.text_input("API URL", value=os.environ.get("MCT_API_URL", DEFAULT_API_URL))
-    st.sidebar.markdown("Start the API before using the dashboard.")
-    page = st.sidebar.radio("Page", ["Operational MVP", "Historical Analytics", "Data Quality"])
+    page = st.sidebar.radio(
+        "Page",
+        [
+            "Control Tower",
+            "Incident Queue",
+            "Route Reliability",
+            "Live Fleet",
+            "Service Alerts",
+            "Historical Reliability",
+            "Data Trust",
+            "City Comparison",
+        ],
+    )
+    page = {"Operational MVP": "Control Tower", "Historical Analytics": "Historical Reliability", "Data Quality": "Data Trust"}.get(page, page)
 
     data = fetch_dashboard_data(api_url)
 
-    if page == "Historical Analytics":
-        st.header("Historical Analytics")
+    if page == "Control Tower":
+        health = _payload(data, "health")
+        if not health.get("ok", True):
+            st.error(health.get("error", "API unavailable."))
+        ready = health.get("status") in {"ok", "ready"}
+        incidents = pd.DataFrame(_rows(_payload(data, "incidents")))
+        alerts = pd.DataFrame(_rows(_payload(data, "alerts_active")))
+        network = pd.DataFrame(_rows(_payload(data, "network_status")))
+        vehicles = pd.DataFrame(_rows(_payload(data, "vehicles")))
+        col1, col2, col3, col4 = st.columns(4)
+        col1.metric("Serving ready", "yes" if ready else "no")
+        col2.metric("Open incidents", len(incidents[incidents["status"] != "RESOLVED"]) if not incidents.empty and "status" in incidents else len(incidents))
+        col3.metric("Active alerts", len(alerts))
+        col4.metric("Vehicles visible", len(vehicles))
+        if not network.empty:
+            st.subheader("Current Network Evidence")
+            st.dataframe(network, use_container_width=True)
+        evaluations = pd.DataFrame(_rows(_payload(data, "incident_evaluations")))
+        if not evaluations.empty:
+            st.subheader("Latest Incident Evaluation")
+            st.dataframe(evaluations.head(1), use_container_width=True)
+        elif not _payload(data, "incident_evaluations").get("ok", True):
+            st.warning("Incident evaluator status requires operations read access.")
+        _table("Critical Incidents", _payload(data, "incidents"))
+        _table("Active Service Alerts", _payload(data, "alerts_active"))
+        return
+
+    if page == "Incident Queue":
+        incidents = _table("Incident Queue", data["incidents"])
+        token = st.text_input("Operator bearer token", type="password")
+        incident_id = st.text_input("Incident ID")
+        note = st.text_input("Operator note")
+        suppress_until = st.text_input("Suppress until UTC")
+        col1, col2, col3, col4 = st.columns(4)
+        if col1.button("Acknowledge", disabled=not incident_id):
+            st.json(post_json(api_url, f"/v1/incidents/{incident_id}/acknowledge", token, {"reason": note}))
+        if col2.button("Resolve", disabled=not incident_id):
+            st.json(post_json(api_url, f"/v1/incidents/{incident_id}/resolve", token, {"reason": note}))
+        if col3.button("Suppress", disabled=not incident_id):
+            st.json(post_json(api_url, f"/v1/incidents/{incident_id}/suppress", token, {"reason": note, "expires_at": suppress_until}))
+        if col4.button("Unsuppress", disabled=not incident_id):
+            st.json(post_json(api_url, f"/v1/incidents/{incident_id}/unsuppress", token, {"reason": note}))
+        if incident_id and token:
+            events = get_json(api_url, f"/v1/incidents/{incident_id}/events", timeout=5, token=token)
+            if events.get("ok", True):
+                _table("Event Timeline", events)
+            else:
+                st.warning(events.get("error", "Event history unavailable."))
+        if not incidents.empty and "evidence" in incidents.columns:
+            st.subheader("Selected Evidence")
+            st.json(incidents.iloc[0]["evidence"])
+        return
+
+    if page == "Route Reliability":
+        routes = pd.DataFrame(_rows(data["routes_api"]))
+        route_ids = sorted(routes["route_id"].dropna().astype(str).unique()) if not routes.empty and "route_id" in routes else []
+        route_id = st.selectbox("Route", route_ids or ["R1"])
+        reliability = get_json(api_url, f"/routes/{route_id}/reliability", {"limit": 100})
+        headways = get_json(api_url, f"/routes/{route_id}/headways", {"limit": 100})
+        _table("Reliability With Coverage", reliability)
+        _table("Headway Evidence", headways)
+        st.caption("Delay and OTP metrics are shown only with observed realtime coverage. Missing Trip Updates remain unknown.")
+        return
+
+    if page == "Live Fleet":
+        vehicles = _table("Latest Vehicle Positions", data["vehicles"])
+        if not vehicles.empty and {"latitude", "longitude"}.issubset(vehicles.columns):
+            map_frame = vehicles.dropna(subset=["latitude", "longitude"]).head(500)
+            if not map_frame.empty:
+                st.map(map_frame.rename(columns={"latitude": "lat", "longitude": "lon"}), latitude="lat", longitude="lon")
+        st.caption("Stale and invalid positions remain visible with flags; unavailable Vehicle Position feeds are not treated as zero vehicles.")
+        return
+
+    if page == "Service Alerts":
+        _table("Active Alerts", data["alerts_active"])
+        st.caption("Alerts are normalized from GTFS-Realtime Service Alerts when the source provides them.")
+        return
+
+    if page == "Historical Reliability":
+        st.header("Historical Reliability")
         summary = _table("Collection summary", data["history_summary"])
         trend = _table("Delay evolution by hour", data["history_delay_trend"])
         feed = _table("Feed freshness history", data["history_feed_health"])
@@ -67,84 +160,35 @@ def main() -> None:
             st.bar_chart(stops.set_index("stop_id")["average_delay_seconds"])
         return
 
-    if page == "Data Quality":
-        st.header("Data Quality")
+    if page == "Data Trust":
+        st.header("Data Trust")
         payload = data["quality_summary"]
         if not payload.get("ok", True):
             st.warning(payload.get("error", "Validation summary unavailable."))
-            return
-        rows = _rows(payload)
-        if not rows:
-            st.info("No validation summary available.")
-            return
-        summary = rows[0]
-        col1, col2, col3 = st.columns(3)
-        col1.metric("Validation success rate", f"{summary.get('success_rate', 0)}%")
-        col2.metric("Failed expectations", summary.get("expectations_failed", 0))
-        col3.metric("Expectations evaluated", summary.get("expectations_evaluated", 0))
-        st.subheader("Freshness")
-        st.json(summary.get("freshness", {}))
-        failed = pd.DataFrame(summary.get("failed_expectations", []))
-        if failed.empty:
-            st.success("No failed expectations in the latest validation summary.")
         else:
-            st.dataframe(failed, use_container_width=True)
-        st.subheader("Latest dbt run")
-        st.write(summary.get("latest_dbt_run", "See dbt target/run_results.json and dbt target/manifest.json."))
-        st.subheader("Model count")
-        st.write(summary.get("model_count", "Available after `test-dbt` or `generate-dbt-docs`."))
+            rows = _rows(payload)
+            summary = rows[0] if rows else {}
+            col1, col2, col3 = st.columns(3)
+            col1.metric("Validation success rate", f"{summary.get('success_rate', 0)}%")
+            col2.metric("Failed expectations", summary.get("expectations_failed", 0))
+            col3.metric("Expectations evaluated", summary.get("expectations_evaluated", 0))
+            failed = pd.DataFrame(summary.get("failed_expectations", []))
+            st.dataframe(failed, use_container_width=True) if not failed.empty else st.success("No failed expectations in the latest validation summary.")
+        _table("Source Capabilities", _payload(data, "sources"))
+        _table("Lineage Status", _payload(data, "lineage_status"))
+        _table("Serving Metadata", _payload(data, "metadata"))
         return
 
-    st.header("1. Project overview")
-    st.write(
-        "This dashboard consumes the local FastAPI API and shows queryable data products from the Mobility Control Tower. "
-        "It is a local academic MVP, not a production monitoring system."
-    )
-
-    st.header("2. API health")
-    health = data["health"]
-    if health.get("ok", True):
-        st.json(health)
-    else:
-        st.error(health["error"])
-
-    st.header("3. Static network overview")
-    network = _table("Network daily summary", data["network_overview"])
-    if not network.empty and "scheduled_trips_count" in network.columns:
-        st.line_chart(network.set_index("service_date")["scheduled_trips_count"])
-
-    st.header("4. Top routes by scheduled trips")
-    top_routes = _table("Top routes over the static GTFS service period", data["top_routes"])
-    if not top_routes.empty and {"route_short_name", "total_scheduled_trips"}.issubset(top_routes.columns):
-        st.bar_chart(top_routes.set_index("route_short_name")["total_scheduled_trips"])
-
-    st.header("5. Route type summary")
-    _table("Route type daily summary sample", data["route_types"])
-
-    st.header("6. Planned hourly headway sample")
-    _table("Planned headway approximation by route/hour", data["hourly_headway"])
-
-    st.header("7. Realtime snapshot feed health")
-    st.write("These GTFS-Realtime snapshot values were observed at fetch time.")
-    _table("Feed health", data["rt_feed_health"])
-
-    st.header("8. Realtime identifier compatibility")
-    compatibility = _table("Static/live identifier compatibility", data["rt_compatibility"])
-    if not compatibility.empty and {"identifier_type", "match_percentage"}.issubset(compatibility.columns):
-        st.bar_chart(compatibility.set_index("identifier_type")["match_percentage"])
-
-    st.header("9. Top delayed routes snapshot")
-    delayed_routes = _table("Routes with highest average observed delay in one snapshot", data["rt_top_delayed_routes"])
-    if not delayed_routes.empty and {"route_short_name", "avg_delay_seconds"}.issubset(delayed_routes.columns):
-        st.bar_chart(delayed_routes.set_index("route_short_name")["avg_delay_seconds"])
-
-    st.header("10. Limitations and next steps")
-    st.write(
-        "- These are static planning KPIs and GTFS-Realtime snapshot indicators.\n"
-        "- The dashboard is read-only and local.\n"
-        "- It is not a production monitoring system and does not implement streaming.\n"
-        "- A future phase could add a richer dashboard or repeated snapshot collection."
-    )
+    sources = pd.DataFrame(_rows(_payload(data, "sources")))
+    reliability = pd.DataFrame(_rows(_payload(data, "network_reliability")))
+    if sources.empty:
+        st.info("No source capability metadata available.")
+        return
+    _table("City Capability Comparison", _payload(data, "sources"))
+    if not reliability.empty:
+        st.subheader("Normalized Reliability Measures")
+        st.dataframe(reliability, use_container_width=True)
+    st.caption("City comparisons use capability and percentage/rate measures. Unsupported feeds are unavailable, not zero.")
 
 
 if __name__ == "__main__":

@@ -42,6 +42,7 @@ def test_cli_success_branches(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setattr(cli, "run_dbt", lambda **kwargs: path)
     monkeypatch.setattr(cli, "test_dbt", lambda *args, **kwargs: file_path)
     monkeypatch.setattr(cli, "generate_dbt_docs", lambda *args, **kwargs: file_path)
+    monkeypatch.setattr(cli, "run_quality_validation", lambda **kwargs: file_path)
     monkeypatch.setattr(cli, "run_ge_validation", lambda **kwargs: file_path)
     monkeypatch.setattr(cli, "run_benchmarks", lambda **kwargs: file_path)
     monkeypatch.setattr(cli, "build_serving_database", lambda *args, **kwargs: path)
@@ -69,9 +70,10 @@ def test_cli_success_branches(monkeypatch, tmp_path: Path) -> None:
         ["generate-rt-snapshot-report", "--rt-gold-run", str(path)],
         ["collect-gtfs-rt", "--source", "tisseo", "--feed-type", "trip_updates", "--max-polls", "1"],
         ["build-history-kpis", "--history-run", str(path)],
-        ["run-dbt", "--silver-run", str(path), "--no-installed-dbt"],
-        ["test-dbt", "--no-installed-dbt"],
-        ["generate-dbt-docs", "--no-installed-dbt"],
+        ["run-dbt", "--silver-run", str(path)],
+        ["test-dbt"],
+        ["generate-dbt-docs"],
+        ["run-quality-validation", "--suite", "silver", "--silver-run", str(path)],
         ["run-ge-validation", "--suite", "silver", "--silver-run", str(path)],
         ["run-benchmarks", "--silver-run", str(path)],
         ["build-serving-db", "--gold-run", str(path)],
@@ -151,4 +153,3 @@ def test_dashboard_pages_execute(monkeypatch) -> None:
         module = importlib.reload(module)
         monkeypatch.setattr(module, "fetch_dashboard_data", lambda api_url: dashboard_payload())
         module.main()
-

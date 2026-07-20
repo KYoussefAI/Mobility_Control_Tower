@@ -68,11 +68,17 @@ def generate_demo_report(gold_run: Path, reports_dir: Path = Path("data/reports"
     stop_daily = _read_csv(gold_run, "stop_daily_departures")
     network = _read_csv(gold_run, "network_daily_summary")
     busiest_route_day = _read_csv(gold_run, "busiest_route_day")
-    busiest_stop_day = _read_csv(gold_run, "busiest_stop_day")
     run_id = gold_run.name
 
-    top_routes = route_period[["route_id", "route_short_name", "route_long_name", "active_service_days", "total_scheduled_trips", "average_trips_per_active_day", "max_daily_trips"]].head(10)
-    top_stops = stop_daily.groupby(["stop_id", "stop_name"], as_index=False, dropna=False)["scheduled_departures_count"].sum().sort_values("scheduled_departures_count", ascending=False).head(10)
+    top_routes = route_period[
+        ["route_id", "route_short_name", "route_long_name", "active_service_days", "total_scheduled_trips", "average_trips_per_active_day", "max_daily_trips"]
+    ].head(10)
+    top_stops = (
+        stop_daily.groupby(["stop_id", "stop_name"], as_index=False, dropna=False)["scheduled_departures_count"]
+        .sum()
+        .sort_values("scheduled_departures_count", ascending=False)
+        .head(10)
+    )
     main_sample = route_daily.sort_values(["service_date", "scheduled_trips_count"], ascending=[True, False]).head(10)
     service_period = {
         "first_service_date": network["service_date"].min() if not network.empty else None,
@@ -185,10 +191,19 @@ def generate_static_mvp_report(gold_run: Path, reports_dir: Path = Path("data/re
 
     top_routes = route_period[["route_short_name", "route_long_name", "total_scheduled_trips", "active_service_days", "average_trips_per_active_day"]].head(5)
     busiest_day = network.sort_values("scheduled_trips_count", ascending=False).head(1)
-    busiest_stop = stop_daily.groupby(["stop_id", "stop_name"], as_index=False, dropna=False)["scheduled_departures_count"].sum().sort_values("scheduled_departures_count", ascending=False).head(1)
-    table_names = pd.DataFrame(
-        [{"table": name, "rows": details.get("row_count", 0)} for name, details in manifest.get("tables_created", {}).items()]
-    ).sort_values("table") if manifest.get("tables_created") else pd.DataFrame()
+    busiest_stop = (
+        stop_daily.groupby(["stop_id", "stop_name"], as_index=False, dropna=False)["scheduled_departures_count"]
+        .sum()
+        .sort_values("scheduled_departures_count", ascending=False)
+        .head(1)
+    )
+    table_names = (
+        pd.DataFrame([{"table": name, "rows": details.get("row_count", 0)} for name, details in manifest.get("tables_created", {}).items()]).sort_values(
+            "table"
+        )
+        if manifest.get("tables_created")
+        else pd.DataFrame()
+    )
     checks_sentence = quality_text
     if quality_counts:
         checks_sentence = f"{quality_counts['PASS']} checks passed, {quality_counts['WARN']} warnings, {quality_counts['FAIL']} failures."

@@ -1,3 +1,5 @@
+{{ config(materialized='incremental', unique_key=['collection_date', 'collection_hour'], incremental_strategy='delete+insert', on_schema_change='fail') }}
+
 select
     collection_date,
     collection_hour,
@@ -10,4 +12,3 @@ select
 from {{ ref('stg_history_stop_time_updates') }}
 group by 1, 2
 order by collection_date, collection_hour
-

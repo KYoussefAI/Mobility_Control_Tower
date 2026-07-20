@@ -152,7 +152,11 @@ def _aggregate_stop_delay(stop_updates: pd.DataFrame, stops: pd.DataFrame) -> pd
     frame = stop_updates.copy()
     frame["delay_seconds"] = _delay_seconds(frame)
     static_stop_ids = _set_from_column(stops, "stop_id")
-    stop_names = stops[["stop_id", "stop_name"]].drop_duplicates("stop_id") if {"stop_id", "stop_name"}.issubset(stops.columns) else pd.DataFrame(columns=["stop_id", "stop_name"])
+    stop_names = (
+        stops[["stop_id", "stop_name"]].drop_duplicates("stop_id")
+        if {"stop_id", "stop_name"}.issubset(stops.columns)
+        else pd.DataFrame(columns=["stop_id", "stop_name"])
+    )
     rows: list[dict[str, Any]] = []
     for stop_id, group in frame.groupby("stop_id", dropna=False):
         total = len(group)
@@ -251,8 +255,12 @@ def compute_rt_gold_tables(silver_tables: dict[str, pd.DataFrame], rt_tables: di
         raise ValueError("Real-time gold currently supports Trip Updates snapshots only")
     compatibility = pd.DataFrame(
         [
-            _id_compatibility("route_id", _set_from_column(pd.concat([trips, stop_updates], ignore_index=True), "route_id"), _set_from_column(routes, "route_id")),
-            _id_compatibility("trip_id", _set_from_column(pd.concat([trips, stop_updates], ignore_index=True), "trip_id"), _set_from_column(static_trips, "trip_id")),
+            _id_compatibility(
+                "route_id", _set_from_column(pd.concat([trips, stop_updates], ignore_index=True), "route_id"), _set_from_column(routes, "route_id")
+            ),
+            _id_compatibility(
+                "trip_id", _set_from_column(pd.concat([trips, stop_updates], ignore_index=True), "trip_id"), _set_from_column(static_trips, "trip_id")
+            ),
             _id_compatibility("stop_id", _set_from_column(stop_updates, "stop_id"), _set_from_column(stops, "stop_id")),
         ]
     )

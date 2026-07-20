@@ -1,0 +1,28 @@
+unit_tests:
+  - name: int_service_dates_calendar_exceptions
+    model: int_service_dates
+    given:
+      - input: ref('stg_calendar')
+        rows:
+          - {service_id: "WK", monday: "1", tuesday: "1", wednesday: "0", thursday: "0", friday: "0", saturday: "0", sunday: "0", start_date: "20260105", end_date: "20260106"}
+      - input: ref('stg_calendar_dates')
+        rows:
+          - {service_id: "WK", date: "20260106", exception_type: "2"}
+          - {service_id: "WK", date: "20260107", exception_type: "1"}
+          - {service_id: "SPECIAL", date: "20260108", exception_type: "1"}
+    expect:
+      rows:
+        - {service_id: "SPECIAL", service_date: "2026-01-08"}
+        - {service_id: "WK", service_date: "2026-01-05"}
+        - {service_id: "WK", service_date: "2026-01-07"}
+
+  - name: int_first_trip_departures_keeps_after_midnight_hour
+    model: int_first_trip_departures
+    given:
+      - input: ref('stg_stop_times')
+        rows:
+          - {trip_id: "T1", stop_id: "S1", stop_sequence: 1, departure_time: "25:10:00", departure_time_seconds: 90600}
+          - {trip_id: "T1", stop_id: "S2", stop_sequence: 2, departure_time: "25:20:00", departure_time_seconds: 91200}
+    expect:
+      rows:
+        - {trip_id: "T1", stop_id: "S1", departure_hour: 25}

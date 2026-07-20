@@ -11,7 +11,6 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import pandas as pd
 
-
 RT_CHART_FILES = (
     "rt_top_routes_by_avg_delay.png",
     "rt_delay_distribution.png",

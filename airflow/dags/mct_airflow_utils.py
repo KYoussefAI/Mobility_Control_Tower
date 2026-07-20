@@ -49,14 +49,6 @@ def airflow_int_variable(name: str, default: int) -> int:
         return default
 
 
-def latest_child(parent: str | Path) -> str:
-    path = Path(parent)
-    children = [child for child in path.iterdir() if child.is_dir()] if path.is_dir() else []
-    if not children:
-        raise FileNotFoundError(f"No run directories found under {path}")
-    return str(max(children, key=lambda child: child.stat().st_mtime))
-
-
 def parse_output_path(stdout: str, label: str) -> str:
     pattern = re.compile(rf"{re.escape(label)}:\s*(.+)$", re.MULTILINE)
     match = pattern.search(stdout)
@@ -97,13 +89,26 @@ def pipeline_context() -> dict[str, str]:
         "dbt_project_dir": airflow_variable("mct_dbt_project_dir", "dbt"),
         "dbt_profiles_dir": airflow_variable("mct_dbt_profiles_dir", "dbt"),
         "dbt_output_root": airflow_variable("mct_dbt_output_root", "data/dbt_gold"),
-        "ge_root": airflow_variable("mct_ge_root", "great_expectations"),
+        "ge_root": airflow_variable("mct_quality_contracts_root", "quality_contracts"),
         "quality_root": airflow_variable("mct_quality_root", "data/quality"),
         "pipeline_runs_root": airflow_variable("mct_pipeline_runs_root", str(DEFAULT_METADATA_ROOT)),
         "polling_interval": str(airflow_int_variable("mct_polling_interval", 30)),
+        "collection_interval": str(airflow_int_variable("mct_collection_interval_seconds", 60)),
+        "refresh_interval": str(airflow_int_variable("mct_refresh_interval_seconds", 600)),
+        "watermark_root": airflow_variable("mct_watermark_root", "data/watermarks"),
+        "incremental_lookback_count": str(airflow_int_variable("mct_incremental_lookback_count", 1)),
         "history_run": str(Path(airflow_variable("mct_history_root", "data/realtime_history")) / source / feed_type),
         "latest_static_gold_run": airflow_variable("mct_latest_static_gold_run", ""),
     }
+
+
+def set_airflow_variable(name: str, value: str) -> None:
+    try:
+        from airflow.models import Variable
+
+        Variable.set(name, value)
+    except Exception:
+        os.environ[name.upper()] = value
 
 
 def build_cli_command(*args: str) -> list[str]:

@@ -7,20 +7,20 @@ import json
 import logging
 import shutil
 import time
+from collections.abc import Callable
 from datetime import datetime, timezone
 from pathlib import Path
 from threading import Event
-from typing import Any, Callable
+from typing import Any
 
 import pandas as pd
 import requests
 from apscheduler.schedulers.background import BackgroundScheduler
 from google.transit import gtfs_realtime_pb2
 
-from mobility_control_tower.realtime.gtfs_rt_parser import _feed_age_seconds, _summary, _trip_updates
-from mobility_control_tower.realtime.gtfs_rt_raw import FEED_TYPES, configured_realtime_url
 from mobility_control_tower.observability import FEED_FRESHNESS, HISTORICAL_POLLS, ROWS_PROCESSED
-
+from mobility_control_tower.realtime.gtfs_rt_parser import _alerts, _summary, _trip_updates, _vehicle_positions
+from mobility_control_tower.realtime.gtfs_rt_raw import FEED_TYPES, configured_realtime_url
 
 Fetcher = Callable[[str, int], tuple[bytes, int | None, str | None]]
 logger = logging.getLogger(__name__)
@@ -32,6 +32,24 @@ def _utc_now() -> datetime:
 
 def _snapshot_id(moment: datetime) -> str:
     return moment.strftime("%Y-%m-%dT%H-%M-%S.%fZ")
+
+
+def _feed_header_timestamp(content: bytes) -> int | None:
+    feed = gtfs_realtime_pb2.FeedMessage()
+    try:
+        feed.ParseFromString(content)
+    except Exception:
+        return None
+    if feed.header.HasField("timestamp"):
+        return int(feed.header.timestamp)
+    return None
+
+
+def deterministic_snapshot_id(source_id: str, feed_type: str, content: bytes, collection_dt: datetime) -> tuple[str, str, int | None]:
+    checksum = hashlib.sha256(content).hexdigest()
+    header_timestamp = _feed_header_timestamp(content)
+    timestamp_part = str(header_timestamp) if header_timestamp is not None else _snapshot_id(collection_dt)
+    return f"{source_id}_{feed_type}_{timestamp_part}_{checksum[:16]}", checksum, header_timestamp
 
 
 def _partition_parts(moment: datetime) -> tuple[str, str]:
@@ -58,6 +76,46 @@ def _append_jsonl(path: Path, payload: dict[str, Any]) -> None:
         handle.write(json.dumps(payload, ensure_ascii=False) + "\n")
 
 
+def _read_existing_metadata(parsed_dir: Path) -> dict[str, Any] | None:
+    metadata_path = parsed_dir / "metadata.json"
+    if not metadata_path.is_file():
+        return None
+    return json.loads(metadata_path.read_text(encoding="utf-8"))
+
+
+def _required_files(feed_type: str) -> tuple[str, ...]:
+    if feed_type == "trip_updates":
+        return ("trip_updates.parquet", "stop_time_updates.parquet", "feed_summary.parquet", "metadata.json", "_SUCCESS")
+    if feed_type == "vehicle_positions":
+        return ("vehicle_positions.parquet", "feed_summary.parquet", "metadata.json", "_SUCCESS")
+    if feed_type == "service_alerts":
+        return ("alerts.parquet", "alert_informed_entities.parquet", "feed_summary.parquet", "metadata.json", "_SUCCESS")
+    return ("metadata.json", "_SUCCESS")
+
+
+def _commit_marker_valid(parsed_dir: Path, feed_type: str | None = None) -> bool:
+    if feed_type is None:
+        metadata = _read_existing_metadata(parsed_dir) or {}
+        feed_type = str(metadata.get("feed_type", "trip_updates"))
+    required = _required_files(feed_type)
+    return all((parsed_dir / name).is_file() for name in required)
+
+
+def discover_committed_snapshots(history_run: Path) -> list[dict[str, Any]]:
+    """Return committed historical snapshots in deterministic order."""
+    if not history_run.is_dir():
+        return []
+    snapshots: list[dict[str, Any]] = []
+    for metadata_path in sorted(history_run.glob("date=*/hour=*/snapshot_timestamp=*/metadata.json")):
+        parsed_dir = metadata_path.parent
+        metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+        if not _commit_marker_valid(parsed_dir, str(metadata.get("feed_type", "trip_updates"))):
+            continue
+        metadata["parsed_path"] = str(parsed_dir)
+        snapshots.append(metadata)
+    return sorted(snapshots, key=lambda row: (row.get("collection_time", ""), row.get("snapshot_id", row.get("snapshot_timestamp", ""))))
+
+
 def _add_history_metadata(
     frame: pd.DataFrame,
     *,
@@ -67,10 +125,19 @@ def _add_history_metadata(
     poll_number: int,
     collection_date: str,
     collection_hour: str,
+    source_id: str,
+    feed_type: str,
+    checksum: str,
+    header_timestamp: int | None,
 ) -> pd.DataFrame:
     result = frame.copy()
+    result["source"] = source_id
+    result["feed_type"] = feed_type
+    result["snapshot_id"] = snapshot_timestamp
     result["snapshot_timestamp"] = snapshot_timestamp
     result["collection_time"] = collection_time
+    result["feed_header_timestamp"] = header_timestamp
+    result["payload_checksum"] = checksum
     result["feed_age_seconds"] = feed_age_seconds
     result["poll_number"] = poll_number
     result["collection_date"] = collection_date
@@ -85,15 +152,22 @@ def _to_parquet(frame: pd.DataFrame, path: Path) -> None:
     frame.replace("", pd.NA).to_parquet(path, index=False, engine="pyarrow")
 
 
-def _parse_trip_updates(content: bytes, fetched_at: str) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+def _parse_feed(content: bytes, feed_type: str, fetched_at: str) -> tuple[dict[str, pd.DataFrame], pd.DataFrame]:
     feed = gtfs_realtime_pb2.FeedMessage()
     try:
         feed.ParseFromString(content)
     except Exception as exc:
         raise ValueError(f"Unable to parse GTFS-Realtime protobuf snapshot: {exc}") from exc
-    trips, stops, parsed, skipped = _trip_updates(feed)
-    summary = _summary(feed, "trip_updates", fetched_at, parsed, skipped)
-    return trips, stops, summary
+    if feed_type == "trip_updates":
+        trips, stops, parsed, skipped = _trip_updates(feed)
+        return {"trip_updates": trips, "stop_time_updates": stops}, _summary(feed, feed_type, fetched_at, parsed, skipped)
+    if feed_type == "vehicle_positions":
+        vehicles, parsed, skipped = _vehicle_positions(feed)
+        return {"vehicle_positions": vehicles}, _summary(feed, feed_type, fetched_at, parsed, skipped)
+    if feed_type == "service_alerts":
+        alerts, informed, parsed, skipped = _alerts(feed)
+        return {"alerts": alerts, "alert_informed_entities": informed}, _summary(feed, feed_type, fetched_at, parsed, skipped)
+    raise ValueError(f"Historical collection does not support feed type '{feed_type}'")
 
 
 def collect_gtfs_rt_snapshot(
@@ -111,51 +185,51 @@ def collect_gtfs_rt_snapshot(
     """Fetch one GTFS-Realtime snapshot and append it to immutable history partitions."""
     if feed_type not in FEED_TYPES:
         raise ValueError(f"Unsupported GTFS-Realtime feed type '{feed_type}'. Expected one of: {', '.join(sorted(FEED_TYPES))}")
-    if feed_type != "trip_updates":
-        raise ValueError("Historical collection currently supports trip_updates feeds")
     resolved_url = url or configured_realtime_url(source, feed_type)
     if not resolved_url:
         raise ValueError(
-            f"No configured GTFS-Realtime URL for feed type '{feed_type}'. "
-            "Provide one with --url or add it under gtfs_realtime in config/sources.yml."
+            f"No enabled GTFS-Realtime URL for feed type '{feed_type}'. " "Provide one with --url or enable it under realtime in config/sources.yml."
         )
 
     collection_dt = _utc_now()
     collection_time = collection_dt.isoformat()
     collection_date, collection_hour = _partition_parts(collection_dt)
-    snapshot_timestamp = _snapshot_id(collection_dt)
     content, http_status, content_type = (fetcher or _default_fetcher)(resolved_url, timeout_seconds)
     if not content:
         raise ValueError("GTFS-Realtime snapshot is empty")
+    snapshot_timestamp, checksum, header_timestamp = deterministic_snapshot_id(source_id, feed_type, content, collection_dt)
+    parsed_dir = (
+        parsed_history_root / source_id / feed_type / f"date={collection_date}" / f"hour={collection_hour}" / f"snapshot_timestamp={snapshot_timestamp}"
+    )
+    existing = _read_existing_metadata(parsed_dir)
+    if existing is not None:
+        if existing.get("sha256") == checksum and _commit_marker_valid(parsed_dir, feed_type):
+            duplicate = dict(existing)
+            duplicate["duplicate"] = True
+            return duplicate
+        raise FileExistsError(f"Conflicting historical snapshot already exists for snapshot id: {snapshot_timestamp}")
 
-    raw_dir = raw_history_root / source_id / feed_type / f"date={collection_date}" / f"hour={collection_hour}" / snapshot_timestamp
-    raw_dir.mkdir(parents=True, exist_ok=False)
-    raw_path = raw_dir / "feed.pb"
-    raw_path.write_bytes(content)
-
-    trips, stops, summary = _parse_trip_updates(content, collection_time)
+    tables, summary = _parse_feed(content, feed_type, collection_time)
     feed_age = summary.iloc[0].get("feed_age_seconds") if not summary.empty else None
     if pd.isna(feed_age):
         feed_age = None
     feed_age = int(feed_age) if feed_age is not None else None
-    trips = _add_history_metadata(
-        trips,
-        snapshot_timestamp=snapshot_timestamp,
-        collection_time=collection_time,
-        feed_age_seconds=feed_age,
-        poll_number=poll_number,
-        collection_date=collection_date,
-        collection_hour=collection_hour,
-    )
-    stops = _add_history_metadata(
-        stops,
-        snapshot_timestamp=snapshot_timestamp,
-        collection_time=collection_time,
-        feed_age_seconds=feed_age,
-        poll_number=poll_number,
-        collection_date=collection_date,
-        collection_hour=collection_hour,
-    )
+    history_tables = {
+        name: _add_history_metadata(
+            frame,
+            snapshot_timestamp=snapshot_timestamp,
+            collection_time=collection_time,
+            feed_age_seconds=feed_age,
+            poll_number=poll_number,
+            collection_date=collection_date,
+            collection_hour=collection_hour,
+            source_id=source_id,
+            feed_type=feed_type,
+            checksum=checksum,
+            header_timestamp=header_timestamp,
+        )
+        for name, frame in tables.items()
+    }
     summary = _add_history_metadata(
         summary,
         snapshot_timestamp=snapshot_timestamp,
@@ -164,6 +238,10 @@ def collect_gtfs_rt_snapshot(
         poll_number=poll_number,
         collection_date=collection_date,
         collection_hour=collection_hour,
+        source_id=source_id,
+        feed_type=feed_type,
+        checksum=checksum,
+        header_timestamp=header_timestamp,
     )
 
     metadata = {
@@ -176,36 +254,48 @@ def collect_gtfs_rt_snapshot(
         "collection_date": collection_date,
         "collection_hour": collection_hour,
         "poll_number": poll_number,
+        "snapshot_id": snapshot_timestamp,
+        "feed_header_timestamp": header_timestamp,
         "feed_age_seconds": feed_age,
-        "sha256": hashlib.sha256(content).hexdigest(),
+        "sha256": checksum,
         "file_size_bytes": len(content),
         "http_status": http_status,
         "content_type": content_type,
-        "raw_path": str(raw_path),
-        "parsed_path": str(parsed_history_root / source_id / feed_type / f"date={collection_date}" / f"hour={collection_hour}" / f"snapshot_timestamp={snapshot_timestamp}"),
-        "trip_update_rows": int(len(trips)),
-        "stop_time_update_rows": int(len(stops)),
+        "raw_path": str(raw_history_root / source_id / feed_type / f"date={collection_date}" / f"hour={collection_hour}" / snapshot_timestamp / "feed.pb"),
+        "parsed_path": str(parsed_dir),
+        "row_counts": {name: int(len(frame)) for name, frame in history_tables.items()},
+        "trip_update_rows": int(len(history_tables.get("trip_updates", pd.DataFrame()))),
+        "stop_time_update_rows": int(len(history_tables.get("stop_time_updates", pd.DataFrame()))),
+        "vehicle_position_rows": int(len(history_tables.get("vehicle_positions", pd.DataFrame()))),
+        "alert_rows": int(len(history_tables.get("alerts", pd.DataFrame()))),
     }
-    _write_json(raw_dir / "metadata.json", metadata)
 
-    parsed_dir = Path(metadata["parsed_path"])
+    raw_dir = Path(str(metadata["raw_path"])).parent
+    raw_tmp_dir = raw_dir.parent / f".{raw_dir.name}.tmp"
     parsed_tmp_dir = parsed_dir.parent / f".{parsed_dir.name}.tmp"
-    if parsed_dir.exists() or parsed_tmp_dir.exists():
+    if parsed_dir.exists() or parsed_tmp_dir.exists() or raw_dir.exists() or raw_tmp_dir.exists():
         raise FileExistsError(f"Historical parsed snapshot already exists and will not be overwritten: {parsed_dir}")
     try:
-        _to_parquet(trips, parsed_tmp_dir / "trip_updates.parquet")
-        _to_parquet(stops, parsed_tmp_dir / "stop_time_updates.parquet")
+        raw_tmp_dir.mkdir(parents=True, exist_ok=False)
+        (raw_tmp_dir / "feed.pb").write_bytes(content)
+        _write_json(raw_tmp_dir / "metadata.json", metadata)
+        for name, frame in history_tables.items():
+            _to_parquet(frame, parsed_tmp_dir / f"{name}.parquet")
         _to_parquet(summary, parsed_tmp_dir / "feed_summary.parquet")
         _write_json(parsed_tmp_dir / "metadata.json", metadata)
+        (parsed_tmp_dir / "_SUCCESS").write_text("ok\n", encoding="utf-8")
+        (raw_tmp_dir / "_SUCCESS").write_text("ok\n", encoding="utf-8")
+        raw_tmp_dir.rename(raw_dir)
         parsed_tmp_dir.rename(parsed_dir)
     except Exception:
         shutil.rmtree(parsed_tmp_dir, ignore_errors=True)
+        shutil.rmtree(raw_tmp_dir, ignore_errors=True)
         raise
 
-    _write_json(parsed_dir / "metadata.json", metadata)
     _append_jsonl(parsed_history_root / source_id / feed_type / "collection_log.jsonl", metadata)
     HISTORICAL_POLLS.labels(source=source_id, feed_type=feed_type).inc()
-    ROWS_PROCESSED.labels(pipeline="historical_realtime", task="collect_gtfs_rt").inc(int(len(stops)))
+    rows_processed = sum(len(frame) for frame in history_tables.values())
+    ROWS_PROCESSED.labels(pipeline="historical_realtime", task="collect_gtfs_rt").inc(int(rows_processed))
     if feed_age is not None:
         FEED_FRESHNESS.labels(source=source_id, feed_type=feed_type).set(feed_age)
     return metadata
@@ -245,8 +335,7 @@ def run_historical_collection(
         )
         results.append(metadata)
         logger.info(
-            f"Collected poll {poll_number}: {metadata['stop_time_update_rows']} stop updates, "
-            f"raw={metadata['raw_path']}, parsed={metadata['parsed_path']}",
+            f"Collected poll {poll_number}: {metadata.get('row_counts', {})} rows, raw={metadata['raw_path']}, parsed={metadata['parsed_path']}",
         )
         if max_polls is not None and len(results) >= max_polls:
             stop_requested.set()

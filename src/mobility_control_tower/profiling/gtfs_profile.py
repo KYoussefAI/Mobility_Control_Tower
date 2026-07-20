@@ -6,9 +6,9 @@ import csv
 import io
 import json
 import zipfile
+from collections.abc import Iterable
 from pathlib import Path, PurePosixPath
-from typing import Any, Iterable
-
+from typing import Any
 
 IMPORTANT_FILES = (
     "agency.txt",
@@ -83,20 +83,30 @@ def build_profile(gtfs_zip: Path, run_id: str) -> dict[str, Any]:
 
 def _markdown(profile: dict[str, Any]) -> str:
     lines = [
-        f"# GTFS profile: {profile['run_id']}", "",
-        f"Archive: `{profile['gtfs_zip']}`", "",
-        "## Summary", "",
-        "| Metric | Value |", "|---|---:|",
+        f"# GTFS profile: {profile['run_id']}",
+        "",
+        f"Archive: `{profile['gtfs_zip']}`",
+        "",
+        "## Summary",
+        "",
+        "| Metric | Value |",
+        "|---|---:|",
     ]
     for metric in ("number_of_routes", "number_of_stops", "number_of_trips", "number_of_stop_times"):
         value = profile[metric] if profile[metric] is not None else "not available"
         lines.append(f"| {metric.replace('_', ' ').title()} | {value} |")
     date_range = profile["service_date_range"]
-    lines.extend([
-        f"| Service start date | {date_range['start_date'] or 'not available'} |",
-        f"| Service end date | {date_range['end_date'] or 'not available'} |", "",
-        "## Important files", "", "| File | Present | Rows | Columns |", "|---|---|---:|---|",
-    ])
+    lines.extend(
+        [
+            f"| Service start date | {date_range['start_date'] or 'not available'} |",
+            f"| Service end date | {date_range['end_date'] or 'not available'} |",
+            "",
+            "## Important files",
+            "",
+            "| File | Present | Rows | Columns |",
+            "|---|---|---:|---|",
+        ]
+    )
     for name, present in profile["important_files_present"].items():
         details = profile["files"].get(name, {})
         columns = ", ".join(details.get("columns", [])) or "—"

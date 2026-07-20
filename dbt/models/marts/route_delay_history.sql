@@ -1,3 +1,5 @@
+{{ config(materialized='incremental', unique_key='route_id', incremental_strategy='delete+insert', on_schema_change='fail') }}
+
 select
     route_id,
     count(*)::integer as updates_collected,
@@ -9,4 +11,3 @@ select
 from {{ ref('stg_history_stop_time_updates') }}
 group by 1
 order by average_delay_seconds desc nulls last
-

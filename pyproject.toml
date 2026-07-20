@@ -27,9 +27,9 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8,<9", "coverage[toml]>=7,<8"]
-orchestration = ["apache-airflow>=2,<3"]
-analytics = ["dbt-core>=1.7,<2", "dbt-duckdb>=1.7,<2", "great-expectations>=0.18,<2"]
+dev = ["pytest>=8,<9", "coverage[toml]>=7,<8", "playwright>=1.48,<2"]
+orchestration = ["apache-airflow>=2,<3", "psycopg2-binary>=2.9,<3"]
+analytics = ["dbt-core>=1.10,<2", "dbt-duckdb>=1.10,<2"]
 quality = ["ruff>=0.6,<1", "black>=24,<25", "isort>=5,<6", "mypy>=1,<2", "pre-commit>=3,<4", "types-PyYAML", "types-requests"]
 
 [project.scripts]
@@ -50,19 +50,19 @@ extend-exclude = '''
   ^/data/
   | ^/airflow/logs/
   | ^/dbt/target/
-  | ^/great_expectations/validation_results/
+  | ^/quality_contracts/validation_results/
 )
 '''
 
 [tool.isort]
 profile = "black"
 line_length = 160
-skip_glob = ["data/*", "dbt/target/*", "airflow/logs/*", "great_expectations/validation_results/*"]
+skip_glob = ["data/*", "dbt/target/*", "airflow/logs/*", "quality_contracts/validation_results/*"]
 
 [tool.ruff]
 line-length = 160
 target-version = "py310"
-extend-exclude = ["data", "dbt/target", "airflow/logs", "great_expectations/validation_results", "htmlcov"]
+extend-exclude = ["data", "dbt/target", "airflow/logs", "quality_contracts/validation_results", "htmlcov"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
@@ -75,7 +75,7 @@ warn_unused_ignores = false
 warn_return_any = false
 disallow_untyped_defs = false
 check_untyped_defs = false
-exclude = "^(data|dbt/target|airflow/logs|great_expectations/validation_results|htmlcov)/"
+exclude = "^(data|dbt/target|airflow/logs|quality_contracts/validation_results|htmlcov)/"
 
 [tool.coverage.run]
 branch = true

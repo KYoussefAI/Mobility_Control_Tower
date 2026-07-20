@@ -14,7 +14,7 @@ airflow/
 
 ## DAGs
 
-- `daily_static_pipeline`: daily static GTFS pipeline from ingestion through dbt, GE validation, and serving.
-- `realtime_collection`: minute-level GTFS-Realtime historical collection, dbt history marts, GE validation, and history serving refresh.
+- `daily_static_pipeline`: daily static GTFS pipeline from ingestion through dbt, MCT quality contracts, and serving.
+- `realtime_collection`: minute-level GTFS-Realtime historical collection, dbt history marts, MCT quality contracts, and history serving refresh.
 
 Both DAGs call the CLI through Python subprocesses and write execution metadata under `data/pipeline_runs/`.

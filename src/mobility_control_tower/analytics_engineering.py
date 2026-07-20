@@ -1,26 +1,22 @@
-"""CLI wrappers for dbt Core and Great Expectations integration.
+"""CLI wrappers for dbt Core and MCT quality-contract integration.
 
 The wrappers keep Python ETL as the source of ingestion/bronze/silver logic.
-When dbt or Great Expectations are installed, the commands delegate to those
-tools. In lightweight local environments, deterministic fallback artifacts are
-created so tests and demos remain runnable.
+dbt is the only production Gold transformation path; this module never
+substitutes Python KPI builders for dbt outputs.
 """
 
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+import duckdb
 import pandas as pd
-import yaml
-
-from mobility_control_tower.metrics.gtfs_kpis import build_gold
-from mobility_control_tower.metrics.historical_kpis import build_historical_kpis
-
 
 DBT_STATIC_MODELS = (
     "route_daily_trips",
@@ -34,6 +30,21 @@ DBT_STATIC_MODELS = (
     "busiest_stop_day",
 )
 DBT_HISTORY_MODELS = (
+    "realtime_trip_coverage",
+    "fct_realtime_delay_observations",
+    "route_delay_distribution",
+    "stop_delay_distribution",
+    "network_delay_distribution",
+    "route_on_time_performance",
+    "network_on_time_performance",
+    "fct_explicit_trip_cancellations",
+    "route_cancellation_summary",
+    "network_cancellation_summary",
+    "fct_observed_headways",
+    "fct_headway_reliability_events",
+    "route_excess_waiting_time",
+    "network_reliability_summary",
+    "reliability_incident_snapshot",
     "route_delay_history",
     "stop_delay_history",
     "delay_evolution_by_hour",
@@ -41,6 +52,7 @@ DBT_HISTORY_MODELS = (
     "trip_match_trend",
     "daily_summary",
 )
+DBT_MODELS = (*DBT_STATIC_MODELS, *DBT_HISTORY_MODELS)
 
 
 def _utc_run_id() -> str:
@@ -52,32 +64,107 @@ def _write_json(path: Path, payload: dict[str, Any]) -> None:
     path.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
 
 
-def _copy_gold_run(source: Path, target: Path) -> None:
-    target.mkdir(parents=True, exist_ok=False)
-    for path in source.iterdir():
-        if path.is_file():
-            shutil.copy2(path, target / path.name)
-
-
 def _dbt_binary() -> str | None:
     return shutil.which("dbt")
 
 
-def _run_dbt_binary(project_dir: Path, profiles_dir: Path, command: str, vars_payload: dict[str, str]) -> None:
+def _require_dbt_binary() -> str:
     binary = _dbt_binary()
     if not binary:
-        raise FileNotFoundError("dbt binary not found")
+        raise FileNotFoundError(
+            "dbt executable not found. Install analytics dependencies with " 'python -m pip install -e ".[analytics]" and rerun the command.'
+        )
+    return binary
+
+
+def _run_dbt_command(
+    *,
+    project_dir: Path,
+    profiles_dir: Path,
+    command: str | tuple[str, ...],
+    vars_payload: dict[str, str],
+    db_path: Path,
+    target_path: Path,
+    select: tuple[str, ...] = (),
+) -> subprocess.CompletedProcess[str]:
+    binary = _require_dbt_binary()
     args = [
         binary,
-        command,
+        *(command if isinstance(command, tuple) else (command,)),
         "--project-dir",
         str(project_dir),
         "--profiles-dir",
         str(profiles_dir),
-        "--vars",
-        json.dumps(vars_payload),
+        "--target-path",
+        str(target_path),
     ]
-    subprocess.run(args, check=True)
+    if vars_payload:
+        args.extend(["--vars", json.dumps(vars_payload)])
+    if select:
+        args.extend(["--select", *select])
+    env = dict(os.environ)
+    env["MCT_DBT_DATABASE_PATH"] = str(db_path)
+    return subprocess.run(args, check=True, text=True, capture_output=True, env=env)
+
+
+def _validate_input_path(path: Path | None, label: str) -> None:
+    if path is not None and not path.is_dir():
+        raise FileNotFoundError(f"{label} directory not found: {path}")
+
+
+def _model_selection(silver_run: Path | None, history_run: Path | None) -> tuple[str, ...]:
+    selected: list[str] = []
+    if silver_run is not None:
+        selected.extend(f"+{model}" for model in DBT_STATIC_MODELS)
+    if history_run is not None:
+        selected.extend(f"+{model}" for model in DBT_HISTORY_MODELS)
+    return tuple(selected)
+
+
+def _source_id(silver_run: Path | None, history_run: Path | None) -> str:
+    if silver_run is not None:
+        return silver_run.parent.name
+    if history_run is not None:
+        return history_run.parent.parent.name if history_run.parent.name == "trip_updates" else history_run.parent.name
+    raise ValueError("run-dbt requires --silver-run, --history-run, or both")
+
+
+def _duckdb_table_exists(connection: duckdb.DuckDBPyConnection, table: str) -> bool:
+    row = connection.execute(
+        "select count(*) from information_schema.tables where table_schema = current_schema() and table_name = ?",
+        [table],
+    ).fetchone()
+    return bool(row and row[0])
+
+
+def _export_dbt_models(db_path: Path, output_dir: Path) -> dict[str, dict[str, Any]]:
+    models_created: dict[str, dict[str, Any]] = {}
+    with duckdb.connect(str(db_path), read_only=True) as connection:
+        for model in DBT_MODELS:
+            if not _duckdb_table_exists(connection, model):
+                continue
+            csv_path = output_dir / f"{model}.csv"
+            parquet_path = output_dir / f"{model}.parquet"
+            connection.execute(f"COPY (SELECT * FROM {model}) TO ? (HEADER, DELIMITER ',')", [str(csv_path)])
+            connection.execute(f"COPY (SELECT * FROM {model}) TO ? (FORMAT PARQUET)", [str(parquet_path)])
+            columns = [row[1] for row in connection.execute(f"PRAGMA table_info('{model}')").fetchall()]
+            row = connection.execute(f"SELECT COUNT(*) FROM {model}").fetchone()
+            models_created[model] = {
+                "relation": model,
+                "row_count": int(row[0]) if row else 0,
+                "columns": columns,
+                "csv": csv_path.name,
+                "parquet": parquet_path.name,
+            }
+    return models_created
+
+
+def _dbt_version() -> str:
+    try:
+        completed = subprocess.run([_require_dbt_binary(), "--version"], check=True, text=True, capture_output=True, timeout=15)
+        return completed.stdout.strip()
+    except subprocess.TimeoutExpired:
+        return "dbt version probe timed out after successful dbt command execution"
 
 
 def run_dbt(
@@ -89,53 +176,97 @@ def run_dbt(
     output_root: Path = Path("data/dbt_gold"),
     use_installed: bool = True,
 ) -> Path:
-    """Run dbt or local dbt-compatible materialization after Silver."""
+    """Run a real dbt build and export dbt-built mart relations."""
     if silver_run is None and history_run is None:
         raise ValueError("run-dbt requires --silver-run, --history-run, or both")
-    if use_installed and _dbt_binary():
-        vars_payload: dict[str, str] = {}
-        if silver_run is not None:
-            vars_payload["silver_run"] = str(silver_run)
-        if history_run is not None:
-            vars_payload["history_run"] = str(history_run)
-        _run_dbt_binary(project_dir, profiles_dir, "run", vars_payload)
+    if not use_installed:
+        raise RuntimeError("run-dbt requires the real dbt executable; --no-installed-dbt is no longer supported for Gold builds.")
+    _validate_input_path(project_dir, "dbt project")
+    _validate_input_path(profiles_dir, "dbt profiles")
+    _validate_input_path(silver_run, "Silver run")
+    _validate_input_path(history_run, "History run")
 
-    source_id = (silver_run.parent.name if silver_run is not None else history_run.parent.name)  # type: ignore[union-attr]
-    output_dir = output_root / source_id / _utc_run_id()
-    output_dir.mkdir(parents=True, exist_ok=False)
-    models_created: dict[str, dict[str, Any]] = {}
-
+    run_id = _utc_run_id()
+    source_id = _source_id(silver_run, history_run)
+    output_dir = output_root / source_id / run_id
+    temp_dir = output_root / source_id / f".{run_id}.tmp"
+    if temp_dir.exists():
+        shutil.rmtree(temp_dir)
+    temp_dir.mkdir(parents=True, exist_ok=False)
+    db_path = (temp_dir / "mobility_control_tower_dbt.duckdb").resolve()
+    target_path = (temp_dir / "target").resolve()
+    vars_payload: dict[str, str] = {}
     if silver_run is not None:
-        static_gold = build_gold(silver_run, output_root / "_python_static")
-        for name in DBT_STATIC_MODELS:
-            csv_path = static_gold / f"{name}.csv"
-            if csv_path.is_file():
-                frame = pd.read_csv(csv_path)
-                frame.to_csv(output_dir / f"{name}.csv", index=False)
-                frame.to_parquet(output_dir / f"{name}.parquet", index=False, engine="pyarrow")
-                models_created[name] = {"rows": int(len(frame)), "format": ["csv", "parquet"]}
-
-    if history_run is not None and history_run.is_dir():
-        history_gold = build_historical_kpis(history_run, output_root / "_python_history")
-        for name in DBT_HISTORY_MODELS:
-            parquet_path = history_gold / f"{name}.parquet"
-            if parquet_path.is_file():
-                frame = pd.read_parquet(parquet_path)
-                frame.to_parquet(output_dir / f"{name}.parquet", index=False, engine="pyarrow")
-                frame.to_csv(output_dir / f"{name}.csv", index=False)
-                models_created[name] = {"rows": int(len(frame)), "format": ["csv", "parquet"]}
-
-    _write_json(
-        output_dir / "dbt_run_manifest.json",
-        {
-            "generated_timestamp": datetime.now(timezone.utc).isoformat(),
-            "tool": "dbt Core" if _dbt_binary() and use_installed else "local dbt-compatible fallback",
-            "project_dir": str(project_dir),
-            "silver_run": str(silver_run) if silver_run else None,
-            "history_run": str(history_run) if history_run else None,
-            "models_created": models_created,
-        },
-    )
+        vars_payload["silver_run"] = str(silver_run.resolve())
+    if history_run is not None:
+        vars_payload["history_run"] = str(history_run.resolve())
+    command_started = datetime.now(timezone.utc)
+    command_args = [
+        _require_dbt_binary(),
+        "build",
+        "--project-dir",
+        str(project_dir),
+        "--profiles-dir",
+        str(profiles_dir),
+        "--target-path",
+        str(target_path),
+        "--vars",
+        json.dumps(vars_payload),
+        "--select",
+        *_model_selection(silver_run, history_run),
+    ]
+    try:
+        try:
+            completed = _run_dbt_command(
+                project_dir=project_dir,
+                profiles_dir=profiles_dir,
+                command="build",
+                vars_payload=vars_payload,
+                db_path=db_path,
+                target_path=target_path,
+                select=_model_selection(silver_run, history_run),
+            )
+        except subprocess.CalledProcessError as exc:
+            raise RuntimeError(
+                f"dbt build failed with exit code {exc.returncode}. stdout: {(exc.stdout or '')[-2000:]} stderr: {(exc.stderr or '')[-2000:]}"
+            ) from exc
+        models_created = _export_dbt_models(db_path, temp_dir)
+        manifest_path = target_path / "manifest.json"
+        if not manifest_path.is_file():
+            raise RuntimeError(f"dbt build completed but manifest.json was not found at {manifest_path}")
+        final_db_path = (output_dir / db_path.name).resolve()
+        final_target_path = (output_dir / target_path.name).resolve()
+        final_manifest_path = final_target_path / "manifest.json"
+        _write_json(
+            temp_dir / "dbt_run_manifest.json",
+            {
+                "source": source_id,
+                "run_id": run_id,
+                "generated_timestamp": datetime.now(timezone.utc).isoformat(),
+                "command_started_timestamp": command_started.isoformat(),
+                "status": "success",
+                "tool": "dbt Core",
+                "dbt_version": _dbt_version(),
+                "command": command_args,
+                "project_dir": str(project_dir),
+                "profiles_dir": str(profiles_dir),
+                "target_path": str(final_target_path),
+                "dbt_manifest_path": str(final_manifest_path),
+                "database_path": str(final_db_path),
+                "silver_run": str(silver_run) if silver_run else None,
+                "history_run": str(history_run) if history_run else None,
+                "models_created": models_created,
+                "stdout_tail": completed.stdout[-4000:],
+                "stderr_tail": completed.stderr[-4000:],
+                "contract": "Run-scoped directory containing the dbt DuckDB database plus CSV/Parquet exports read from dbt-built mart relations.",
+            },
+        )
+        if output_dir.exists():
+            raise FileExistsError(f"dbt output directory already exists: {output_dir}")
+        temp_dir.rename(output_dir)
+    except Exception:
+        shutil.rmtree(temp_dir, ignore_errors=True)
+        raise
     return output_dir
 
 
@@ -144,47 +275,25 @@ def _schema_files(project_dir: Path) -> list[Path]:
 
 
 def test_dbt(project_dir: Path = Path("dbt"), profiles_dir: Path = Path("dbt"), use_installed: bool = True) -> Path:
-    """Run dbt tests or validate schema/test declarations locally."""
-    if use_installed and _dbt_binary():
-        _run_dbt_binary(project_dir, profiles_dir, "test", {})
-    model_count = len(list(project_dir.glob("models/**/*.sql")))
-    declared_tests = 0
-    documented_models = 0
-    for schema_path in _schema_files(project_dir):
-        data = yaml.safe_load(schema_path.read_text(encoding="utf-8")) or {}
-        for model in data.get("models", []):
-            documented_models += 1
-            for column in model.get("columns", []):
-                declared_tests += len(column.get("tests", []) or [])
-    output = project_dir / "target" / "run_results.json"
-    _write_json(
-        output,
-        {
-            "generated_timestamp": datetime.now(timezone.utc).isoformat(),
-            "status": "success",
-            "model_count": model_count,
-            "documented_models": documented_models,
-            "declared_tests": declared_tests,
-            "tool": "dbt Core" if _dbt_binary() and use_installed else "local dbt-compatible fallback",
-        },
-    )
-    return output
+    """Run real dbt tests."""
+    if not use_installed:
+        raise RuntimeError("test-dbt requires the real dbt executable; local fallback validation has been removed.")
+    db_path = project_dir / "target" / "test.duckdb"
+    target_path = project_dir / "target"
+    _run_dbt_command(project_dir=project_dir, profiles_dir=profiles_dir, command="test", vars_payload={}, db_path=db_path, target_path=target_path)
+    return target_path / "run_results.json"
 
 
 def generate_dbt_docs(project_dir: Path = Path("dbt"), profiles_dir: Path = Path("dbt"), use_installed: bool = True) -> Path:
-    """Generate dbt docs or local docs artifacts."""
-    if use_installed and _dbt_binary():
-        _run_dbt_binary(project_dir, profiles_dir, "docs", {})
-    target = project_dir / "target"
-    target.mkdir(parents=True, exist_ok=True)
-    models = sorted(path.stem for path in project_dir.glob("models/**/*.sql"))
-    _write_json(target / "manifest.json", {"models": models, "generated_at": datetime.now(timezone.utc).isoformat()})
-    _write_json(target / "catalog.json", {"nodes": {model: {"type": "model"} for model in models}})
-    (target / "index.html").write_text(
-        "<html><body><h1>Mobility Control Tower dbt Docs</h1><p>Lineage and model catalog generated locally.</p></body></html>\n",
-        encoding="utf-8",
+    """Generate real dbt docs artifacts."""
+    if not use_installed:
+        raise RuntimeError("generate-dbt-docs requires the real dbt executable; local docs fallback has been removed.")
+    db_path = project_dir / "target" / "docs.duckdb"
+    target_path = project_dir / "target"
+    _run_dbt_command(
+        project_dir=project_dir, profiles_dir=profiles_dir, command=("docs", "generate"), vars_payload={}, db_path=db_path, target_path=target_path
     )
-    return target / "index.html"
+    return target_path / "index.html"
 
 
 def _read_csv_table(root: Path, table: str) -> pd.DataFrame:
@@ -253,16 +362,16 @@ def _tables_for_suite(suite_name: str, silver_run: Path | None, gold_run: Path |
     return {}
 
 
-def run_ge_validation(
+def run_quality_validation(
     *,
     suite_name: str = "all",
     silver_run: Path | None = None,
     gold_run: Path | None = None,
     history_run: Path | None = None,
-    ge_root: Path = Path("great_expectations"),
+    ge_root: Path = Path("quality_contracts"),
     quality_root: Path = Path("data/quality"),
 ) -> Path:
-    """Run local Great Expectations-compatible validation over pipeline outputs."""
+    """Run MCT quality-contract validation over pipeline outputs."""
     selected = ("silver", "gold", "history") if suite_name == "all" else (suite_name,)
     results: list[dict[str, Any]] = []
     for suite in selected:
@@ -318,8 +427,16 @@ def run_ge_validation(
     data_docs = ge_root / "data_docs" / "local_site" / "index.html"
     data_docs.parent.mkdir(parents=True, exist_ok=True)
     data_docs.write_text(
-        f"<html><body><h1>Great Expectations Data Docs</h1><p>Success rate: {summary['success_rate']}%</p><p>Generated: {summary['generated_timestamp']}</p></body></html>\n",
+        f"<html><body><h1>MCT Quality Contract Docs</h1><p>Success rate: {summary['success_rate']}%</p><p>Generated: {summary['generated_timestamp']}</p></body></html>\n",
         encoding="utf-8",
     )
+    if not summary["success"]:
+        raise RuntimeError(
+            f"MCT quality validation failed: {summary['expectations_failed']} of {summary['expectations_evaluated']} expectations failed. Results: {validation_path}"
+        )
     return validation_path
 
+
+def run_ge_validation(**kwargs: Any) -> Path:
+    """Legacy alias for run_quality_validation."""
+    return run_quality_validation(**kwargs)

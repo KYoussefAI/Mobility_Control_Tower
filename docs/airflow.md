@@ -57,11 +57,10 @@ flowchart LR
     C --> D[build_silver]
     D --> E[validate_gtfs]
     E --> F[run_dbt_models]
-    F --> G[test_dbt_models]
-    G --> H[validate_with_ge]
-    H --> I[generate_static_charts]
-    I --> J[generate_demo_report]
-    J --> K[build_serving_db]
+    F --> G[validate_with_quality_contracts]
+    G --> H[generate_static_charts]
+    H --> I[generate_demo_report]
+    I --> J[build_serving_db]
 ```
 
 CLI commands called:
@@ -72,13 +71,12 @@ CLI commands called:
 - `build-silver`
 - `validate-gtfs`
 - `run-dbt`
-- `test-dbt`
-- `run-ge-validation`
+- `run-quality-validation`
 - `generate-static-charts`
 - `generate-demo-report`
 - `build-serving-db`
 
-### `realtime_collection`
+### `realtime_snapshot_collection`
 
 Schedule: every minute, `* * * * *`.
 
@@ -86,9 +84,7 @@ Task graph:
 
 ```mermaid
 flowchart LR
-    A[collect_gtfs_rt] --> B[run_dbt_history]
-    B --> C[validate_history_with_ge]
-    C --> D[build_serving_db_history]
+    A[collect_gtfs_rt]
 ```
 
 The collector task runs one bounded poll per DAG run by calling:
@@ -99,7 +95,21 @@ python -m mobility_control_tower.cli collect-gtfs-rt --max-polls 1
 
 This keeps Airflow in control of scheduling while preserving the CLI as the source of truth. New snapshots are appended to historical Parquet partitions; existing snapshots are not overwritten.
 
-After collection, Airflow calls `run-dbt`, `run-ge-validation`, and `build-serving-db` for a history-aware serving refresh.
+The one-minute collector does not rebuild dbt history or serving artifacts. It writes raw protobuf, parsed Parquet, metadata, and `_SUCCESS` commit markers only.
+
+### `realtime_incremental_refresh`
+
+Schedule: every 10 minutes, `*/10 * * * *`.
+
+```mermaid
+flowchart LR
+    A[discover_new_snapshots] --> B[run_dbt_history]
+    B --> C[validate_recent_quality]
+    C --> D[publish_serving_refresh]
+    D --> E[advance_refresh_watermark]
+```
+
+The refresh DAG reads committed snapshots after the durable analytical watermark, applies the configured lookback, runs dbt historical marts, validates MCT quality contracts, publishes serving atomically, and advances the watermark last.
 
 ## Retries And Failure Handling
 
@@ -215,3 +225,17 @@ List tasks:
 airflow tasks list daily_static_pipeline
 airflow tasks list realtime_collection
 ```
+## Incident Evaluation Boundary
+
+`realtime_incremental_refresh` evaluates reliability incidents only after dbt, quality validation, and atomic serving publication. The task passes correlation metadata and small identifiers through Airflow; incident state is persisted in the incident repository, never in XCom. `daily_platform_maintenance` also runs platform incident evaluation for freshness, quality, and serving artifact state. Lock conflicts are explicit and retry-safe.
+# Runtime Verification
+
+The `release-proof` workflow verifies Airflow in the running Compose stack:
+
+- webserver `/health`;
+- scheduler-specific `airflow jobs check --job-type SchedulerJob`;
+- parsed DAG list and import errors;
+- `realtime_incremental_refresh` task ordering, with `evaluate_reliability_incidents` downstream of `publish_serving_refresh`;
+- PostgreSQL-backed incident evaluation from Airflow-compatible environment variables.
+
+Incident state is never stored in XCom. XCom carries bounded metadata such as paths, run IDs, and correlation IDs.

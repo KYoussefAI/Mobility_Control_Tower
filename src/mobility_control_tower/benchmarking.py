@@ -5,9 +5,10 @@ from __future__ import annotations
 import json
 import time
 import tracemalloc
+from collections.abc import Callable
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 import duckdb
 
@@ -41,7 +42,8 @@ def _count_parquet_rows(root: Path) -> int:
     if not files:
         return 0
     with duckdb.connect() as connection:
-        return int(connection.execute("SELECT COUNT(*) FROM read_parquet(?)", [[str(path) for path in files]]).fetchone()[0])
+        row = connection.execute("SELECT COUNT(*) FROM read_parquet(?)", [[str(path) for path in files]]).fetchone()
+        return int(row[0]) if row else 0
 
 
 def run_benchmarks(

@@ -14,7 +14,6 @@ from mobility_control_tower.realtime import historical_storage
 from mobility_control_tower.realtime.historical_storage import collect_gtfs_rt_snapshot, run_historical_collection
 from mobility_control_tower.serving.duckdb_loader import build_serving_database, query_serving_database
 
-
 SOURCE = {"name": "Tisseo"}
 
 
@@ -30,9 +29,20 @@ def write_csv(path: Path, rows: list[dict]) -> None:
 
 def make_gold_run(tmp_path: Path) -> Path:
     gold = tmp_path / "gold" / "tisseo" / "static-1"
+    gold.mkdir(parents=True, exist_ok=True)
+    (gold / "dbt_run_manifest.json").write_text('{"status":"success","tool":"dbt Core"}', encoding="utf-8")
     write_csv(
         gold / "route_daily_trips.csv",
-        [{"service_date": "2026-01-01", "route_id": "R1", "route_short_name": "A", "route_long_name": "Airport", "route_type": "3", "scheduled_trips_count": 10}],
+        [
+            {
+                "service_date": "2026-01-01",
+                "route_id": "R1",
+                "route_short_name": "A",
+                "route_long_name": "Airport",
+                "route_type": "3",
+                "scheduled_trips_count": 10,
+            }
+        ],
     )
     write_csv(
         gold / "network_daily_summary.csv",
@@ -40,7 +50,18 @@ def make_gold_run(tmp_path: Path) -> Path:
     )
     write_csv(
         gold / "route_period_summary.csv",
-        [{"route_id": "R1", "route_short_name": "A", "route_long_name": "Airport", "route_type": "3", "active_service_days": 1, "total_scheduled_trips": 10, "average_trips_per_active_day": 10, "max_daily_trips": 10}],
+        [
+            {
+                "route_id": "R1",
+                "route_short_name": "A",
+                "route_long_name": "Airport",
+                "route_type": "3",
+                "active_service_days": 1,
+                "total_scheduled_trips": 10,
+                "average_trips_per_active_day": 10,
+                "max_daily_trips": 10,
+            }
+        ],
     )
     return gold
 
@@ -176,14 +197,46 @@ def test_historical_kpis_and_duckdb_partition_views(tmp_path: Path, monkeypatch)
 def test_compute_historical_kpis_outputs_expected_tables() -> None:
     stops = pd.DataFrame(
         [
-            {"route_id": "R1", "stop_id": "S1", "trip_id": "T1", "arrival_delay": 60, "departure_delay": "", "snapshot_timestamp": "s1", "collection_date": "2026-01-01", "collection_hour": "08"},
-            {"route_id": "R1", "stop_id": "S1", "trip_id": "T2", "arrival_delay": 180, "departure_delay": "", "snapshot_timestamp": "s2", "collection_date": "2026-01-01", "collection_hour": "08"},
+            {
+                "route_id": "R1",
+                "stop_id": "S1",
+                "trip_id": "T1",
+                "arrival_delay": 60,
+                "departure_delay": "",
+                "snapshot_timestamp": "s1",
+                "collection_date": "2026-01-01",
+                "collection_hour": "08",
+            },
+            {
+                "route_id": "R1",
+                "stop_id": "S1",
+                "trip_id": "T2",
+                "arrival_delay": 180,
+                "departure_delay": "",
+                "snapshot_timestamp": "s2",
+                "collection_date": "2026-01-01",
+                "collection_hour": "08",
+            },
         ]
     )
     summary = pd.DataFrame(
         [
-            {"snapshot_timestamp": "s1", "collection_date": "2026-01-01", "collection_hour": "08", "feed_age_seconds": 5, "parsed_entity_count": 1, "skipped_entity_count": 0},
-            {"snapshot_timestamp": "s2", "collection_date": "2026-01-01", "collection_hour": "08", "feed_age_seconds": 15, "parsed_entity_count": 1, "skipped_entity_count": 0},
+            {
+                "snapshot_timestamp": "s1",
+                "collection_date": "2026-01-01",
+                "collection_hour": "08",
+                "feed_age_seconds": 5,
+                "parsed_entity_count": 1,
+                "skipped_entity_count": 0,
+            },
+            {
+                "snapshot_timestamp": "s2",
+                "collection_date": "2026-01-01",
+                "collection_hour": "08",
+                "feed_age_seconds": 15,
+                "parsed_entity_count": 1,
+                "skipped_entity_count": 0,
+            },
         ]
     )
 

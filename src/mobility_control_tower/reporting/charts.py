@@ -11,7 +11,6 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import pandas as pd
 
-
 CHART_FILES = (
     "top_routes_by_total_scheduled_trips.png",
     "network_daily_scheduled_trips.png",

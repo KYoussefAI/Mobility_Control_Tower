@@ -10,7 +10,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-
 SILVER_TABLES = (
     "agency",
     "stops",
@@ -54,10 +53,7 @@ def read_csv_table(path: Path) -> tuple[list[str], list[dict[str, str]]]:
                 raise ValueError("header is empty")
             if len(columns) != len(set(columns)):
                 raise ValueError("column names are duplicated after trimming")
-            rows = [
-                {clean: (row.get(original) or "").strip() for original, clean in zip(original_columns, columns)}
-                for row in reader
-            ]
+            rows = [{clean: (row.get(original) or "").strip() for original, clean in zip(original_columns, columns, strict=True)} for row in reader]
             return columns, rows
     except (UnicodeDecodeError, csv.Error) as exc:
         raise ValueError(f"Cannot read bronze table {path}: {exc}") from exc
@@ -90,14 +86,16 @@ def build_silver(
             if table == "stop_times":
                 columns.extend(["arrival_time_seconds", "departure_time_seconds"])
                 for row in rows:
-                    row["arrival_time_seconds"] = parse_gtfs_time(row.get("arrival_time"))
-                    row["departure_time_seconds"] = parse_gtfs_time(row.get("departure_time"))
+                    arrival_seconds = parse_gtfs_time(row.get("arrival_time"))
+                    departure_seconds = parse_gtfs_time(row.get("departure_time"))
+                    row["arrival_time_seconds"] = "" if arrival_seconds is None else str(arrival_seconds)
+                    row["departure_time_seconds"] = "" if departure_seconds is None else str(departure_seconds)
             for date_column in ("start_date", "end_date", "date"):
                 if date_column in columns:
                     iso_column = f"{date_column}_iso"
                     columns.append(iso_column)
                     for row in rows:
-                        row[iso_column] = parse_gtfs_date(row.get(date_column))
+                        row[iso_column] = parse_gtfs_date(row.get(date_column)) or ""
             output_path = output_dir / f"{table}.csv"
             write_csv_table(output_path, columns, rows)
             tables[table] = {"file": output_path.name, "row_count": len(rows), "columns": columns}
@@ -115,9 +113,7 @@ def build_silver(
                 "Valid stop_times values also have service-day seconds columns; hours above 23 are supported.",
             ],
         }
-        (output_dir / "silver_manifest.json").write_text(
-            json.dumps(manifest, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
-        )
+        (output_dir / "silver_manifest.json").write_text(json.dumps(manifest, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     except Exception:
         shutil.rmtree(output_dir)
         raise

@@ -15,9 +15,20 @@ def write_csv(path: Path, rows: list[dict]) -> None:
 
 def make_gold_run(tmp_path: Path) -> Path:
     gold = tmp_path / "gold" / "tisseo" / "static-1"
+    (gold / "dbt_run_manifest.json").parent.mkdir(parents=True, exist_ok=True)
+    (gold / "dbt_run_manifest.json").write_text(json.dumps({"status": "success", "tool": "dbt Core"}), encoding="utf-8")
     write_csv(
         gold / "route_daily_trips.csv",
-        [{"service_date": "2026-01-01", "route_id": "R1", "route_short_name": "A", "route_long_name": "Airport", "route_type": "3", "scheduled_trips_count": 10}],
+        [
+            {
+                "service_date": "2026-01-01",
+                "route_id": "R1",
+                "route_short_name": "A",
+                "route_long_name": "Airport",
+                "route_type": "3",
+                "scheduled_trips_count": 10,
+            }
+        ],
     )
     write_csv(
         gold / "network_daily_summary.csv",
@@ -25,15 +36,47 @@ def make_gold_run(tmp_path: Path) -> Path:
     )
     write_csv(
         gold / "route_period_summary.csv",
-        [{"route_id": "R1", "route_short_name": "A", "route_long_name": "Airport", "route_type": "3", "active_service_days": 1, "total_scheduled_trips": 10, "average_trips_per_active_day": 10, "max_daily_trips": 10, "first_service_date": "2026-01-01", "last_service_date": "2026-01-01"}],
+        [
+            {
+                "route_id": "R1",
+                "route_short_name": "A",
+                "route_long_name": "Airport",
+                "route_type": "3",
+                "active_service_days": 1,
+                "total_scheduled_trips": 10,
+                "average_trips_per_active_day": 10,
+                "max_daily_trips": 10,
+                "first_service_date": "2026-01-01",
+                "last_service_date": "2026-01-01",
+            }
+        ],
     )
     write_csv(
         gold / "route_hourly_headway.csv",
-        [{"service_date": "2026-01-01", "route_id": "R1", "route_short_name": "A", "route_long_name": "Airport", "departure_hour": 8, "scheduled_departures_count": 4, "planned_headway_minutes": 15}],
+        [
+            {
+                "service_date": "2026-01-01",
+                "route_id": "R1",
+                "route_short_name": "A",
+                "route_long_name": "Airport",
+                "departure_hour": 8,
+                "scheduled_departures_count": 4,
+                "planned_headway_minutes": 15,
+            }
+        ],
     )
     write_csv(
         gold / "route_type_daily_summary.csv",
-        [{"service_date": "2026-01-01", "route_type": "3", "route_type_label": "Bus", "active_routes_count": 1, "scheduled_trips_count": 10, "scheduled_stop_departures_count": 25}],
+        [
+            {
+                "service_date": "2026-01-01",
+                "route_type": "3",
+                "route_type_label": "Bus",
+                "active_routes_count": 1,
+                "scheduled_trips_count": 10,
+                "scheduled_stop_departures_count": 25,
+            }
+        ],
     )
     return gold
 
@@ -46,12 +89,35 @@ def make_rt_gold_run(tmp_path: Path, include_optional_delay: bool = True) -> Pat
     )
     write_csv(
         rt / "rt_identifier_compatibility_snapshot.csv",
-        [{"identifier_type": "route_id", "rt_distinct_count": 1, "matched_static_count": 1, "unmatched_static_count": 0, "match_percentage": 100, "status": "PASS", "sample_unmatched_values": ""}],
+        [
+            {
+                "identifier_type": "route_id",
+                "rt_distinct_count": 1,
+                "matched_static_count": 1,
+                "unmatched_static_count": 0,
+                "match_percentage": 100,
+                "status": "PASS",
+                "sample_unmatched_values": "",
+            }
+        ],
     )
     if include_optional_delay:
         write_csv(
             rt / "rt_route_delay_snapshot.csv",
-            [{"route_id": "R1", "route_short_name": "A", "route_long_name": "Airport", "stop_time_updates_count": 5, "distinct_trip_updates_count": 2, "avg_delay_seconds": 120, "median_delay_seconds": 100, "max_delay_seconds": 300, "delayed_updates_5min_count": 1, "delayed_updates_5min_pct": 20}],
+            [
+                {
+                    "route_id": "R1",
+                    "route_short_name": "A",
+                    "route_long_name": "Airport",
+                    "stop_time_updates_count": 5,
+                    "distinct_trip_updates_count": 2,
+                    "avg_delay_seconds": 120,
+                    "median_delay_seconds": 100,
+                    "max_delay_seconds": 300,
+                    "delayed_updates_5min_count": 1,
+                    "delayed_updates_5min_pct": 20,
+                }
+            ],
         )
         write_csv(
             rt / "rt_stop_delay_snapshot.csv",

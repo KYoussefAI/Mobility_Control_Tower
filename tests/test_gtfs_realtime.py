@@ -9,7 +9,6 @@ from mobility_control_tower.realtime.gtfs_rt_parser import parse_realtime_snapsh
 from mobility_control_tower.realtime.gtfs_rt_raw import preserve_realtime_snapshot
 from mobility_control_tower.realtime.gtfs_rt_report import generate_realtime_report
 
-
 SOURCE = {"name": "Tisseo", "source_page_url": "https://example.test"}
 
 

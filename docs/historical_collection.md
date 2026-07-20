@@ -13,7 +13,7 @@ A single snapshot is evidence for one moment. Historical analytics require many 
 
 ## Scheduled Polling Model
 
-The historical collector uses APScheduler for lightweight local polling. It is intentionally not Kafka, Spark, Airflow, cron, Docker, or cloud infrastructure.
+The historical collector uses APScheduler for local runs and Airflow for scheduled operation. It is intentionally not Kafka, Spark, Kubernetes, or cloud infrastructure.
 
 Example:
 
@@ -30,8 +30,11 @@ Each poll performs the same deterministic sequence:
 2. Preserve the raw `feed.pb`.
 3. Parse trip updates and stop time updates.
 4. Add historical metadata columns.
-5. Write Parquet files into date/hour partitions.
-6. Append one JSON line to the collection log.
+5. Write Parquet files into a temporary snapshot directory.
+6. Validate required files and row counts.
+7. Write `_SUCCESS` last.
+8. Atomically rename the snapshot into the final date/hour partition.
+9. Append one JSON line to the collection log.
 
 Stop the collector with `CTRL+C`. The scheduler shuts down gracefully and keeps all snapshots collected so far.
 
@@ -45,9 +48,10 @@ data/raw_realtime/historical/
     trip_updates/
       date=YYYY-MM-DD/
         hour=HH/
-          YYYY-MM-DDTHH-MM-SS.ffffffZ/
+          <snapshot_id>/
             feed.pb
             metadata.json
+            _SUCCESS
 ```
 
 Parsed history is partitioned by collection date and hour, with one snapshot directory per poll:
@@ -59,14 +63,19 @@ data/realtime_history/
       collection_log.jsonl
       date=YYYY-MM-DD/
         hour=HH/
-          snapshot_timestamp=YYYY-MM-DDTHH-MM-SS.ffffffZ/
+          snapshot_timestamp=<snapshot_id>/
             trip_updates.parquet
             stop_time_updates.parquet
             feed_summary.parquet
             metadata.json
+            _SUCCESS
 ```
 
-The collector never writes one huge file and never deletes prior snapshots. If a target Parquet file already exists, collection fails instead of overwriting history.
+The collector never writes one huge file and never deletes prior snapshots. Snapshot identity is deterministic from source, feed type, feed header timestamp when available, and payload checksum. Repeating the same snapshot is a no-op. Reusing an existing snapshot id with a different checksum is a hard failure. Incomplete directories without `_SUCCESS` are invisible to analytics.
+
+## Watermarks
+
+Incremental analytics use durable watermark JSON under `data/watermarks/<source>/<feed_type>/incremental_refresh.json`. The refresh DAG reads the prior watermark, selects committed snapshots beyond it with a bounded lookback, runs dbt and quality, publishes serving atomically, and advances the watermark last. The watermark is never advanced on dbt, quality, or serving failure.
 
 ## Historical Metadata
 

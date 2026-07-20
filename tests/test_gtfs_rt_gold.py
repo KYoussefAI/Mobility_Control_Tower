@@ -4,12 +4,7 @@ from pathlib import Path
 import pandas as pd
 
 from mobility_control_tower.realtime.gtfs_rt_charts import RT_CHART_FILES, generate_rt_charts
-from mobility_control_tower.realtime.gtfs_rt_kpis import (
-    build_rt_gold,
-    compatibility_status,
-    compute_rt_gold_tables,
-    freshness_status,
-)
+from mobility_control_tower.realtime.gtfs_rt_kpis import build_rt_gold, compatibility_status, compute_rt_gold_tables, freshness_status
 from mobility_control_tower.realtime.gtfs_rt_snapshot_report import generate_rt_snapshot_report
 
 
@@ -43,10 +38,46 @@ def rt_tables() -> dict[str, pd.DataFrame]:
         ),
         "rt_trip_updates": pd.DataFrame(
             [
-                {"entity_id": "E1", "trip_id": "T1", "route_id": "R1", "start_date": "20260101", "start_time": "08:00:00", "schedule_relationship": "SCHEDULED", "trip_update_timestamp": "1", "stop_time_update_count": "2"},
-                {"entity_id": "E2", "trip_id": "T2", "route_id": "R2", "start_date": "20260101", "start_time": "09:00:00", "schedule_relationship": "SCHEDULED", "trip_update_timestamp": "1", "stop_time_update_count": "2"},
-                {"entity_id": "E3", "trip_id": "T3", "route_id": "R3", "start_date": "20260101", "start_time": "10:00:00", "schedule_relationship": "SCHEDULED", "trip_update_timestamp": "1", "stop_time_update_count": "2"},
-                {"entity_id": "E4", "trip_id": "", "route_id": "R1", "start_date": "20260101", "start_time": "11:00:00", "schedule_relationship": "SCHEDULED", "trip_update_timestamp": "1", "stop_time_update_count": "1"},
+                {
+                    "entity_id": "E1",
+                    "trip_id": "T1",
+                    "route_id": "R1",
+                    "start_date": "20260101",
+                    "start_time": "08:00:00",
+                    "schedule_relationship": "SCHEDULED",
+                    "trip_update_timestamp": "1",
+                    "stop_time_update_count": "2",
+                },
+                {
+                    "entity_id": "E2",
+                    "trip_id": "T2",
+                    "route_id": "R2",
+                    "start_date": "20260101",
+                    "start_time": "09:00:00",
+                    "schedule_relationship": "SCHEDULED",
+                    "trip_update_timestamp": "1",
+                    "stop_time_update_count": "2",
+                },
+                {
+                    "entity_id": "E3",
+                    "trip_id": "T3",
+                    "route_id": "R3",
+                    "start_date": "20260101",
+                    "start_time": "10:00:00",
+                    "schedule_relationship": "SCHEDULED",
+                    "trip_update_timestamp": "1",
+                    "stop_time_update_count": "2",
+                },
+                {
+                    "entity_id": "E4",
+                    "trip_id": "",
+                    "route_id": "R1",
+                    "start_date": "20260101",
+                    "start_time": "11:00:00",
+                    "schedule_relationship": "SCHEDULED",
+                    "trip_update_timestamp": "1",
+                    "stop_time_update_count": "1",
+                },
             ]
         ),
         "rt_stop_time_updates": pd.DataFrame(
@@ -123,7 +154,9 @@ def test_identifier_compatibility_fail_and_not_applicable() -> None:
     compatibility = outputs["rt_identifier_compatibility_snapshot"]
     assert set(compatibility["status"]) == {"FAIL"}
 
-    empty_outputs = compute_rt_gold_tables(static_tables(), {"rt_feed_summary": rt_tables()["rt_feed_summary"], "rt_trip_updates": pd.DataFrame(), "rt_stop_time_updates": pd.DataFrame()})
+    empty_outputs = compute_rt_gold_tables(
+        static_tables(), {"rt_feed_summary": rt_tables()["rt_feed_summary"], "rt_trip_updates": pd.DataFrame(), "rt_stop_time_updates": pd.DataFrame()}
+    )
     assert set(empty_outputs["rt_identifier_compatibility_snapshot"]["status"]) == {"NOT_APPLICABLE"}
 
 

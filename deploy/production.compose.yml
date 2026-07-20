@@ -1,0 +1,77 @@
+name: mobility-control-tower-prod
+
+services:
+  reverse-proxy:
+    image: caddy:2.8.4-alpine
+    restart: unless-stopped
+    profiles: ["production"]
+    environment:
+      MCT_PUBLIC_HOSTNAME: "${MCT_PUBLIC_HOSTNAME:?Set MCT_PUBLIC_HOSTNAME for production}"
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      api:
+        condition: service_healthy
+      dashboard:
+        condition: service_healthy
+
+  api:
+    restart: unless-stopped
+    profiles: ["production"]
+    ports: !reset []
+    environment:
+      MCT_ENV: production
+      MCT_INCIDENT_BACKEND: postgres
+      MCT_AUTH_SECRET: "${MCT_AUTH_SECRET:?Set MCT_AUTH_SECRET for production}"
+      MCT_CORS_ALLOWED_ORIGINS: "${MCT_CORS_ALLOWED_ORIGINS:-https://${MCT_PUBLIC_HOSTNAME}}"
+
+  dashboard:
+    restart: unless-stopped
+    profiles: ["production"]
+    ports: !reset []
+    environment:
+      MCT_ENV: production
+      MCT_API_URL: "https://${MCT_PUBLIC_HOSTNAME}"
+
+  postgres:
+    restart: unless-stopped
+    profiles: ["production"]
+    ports: !reset []
+
+  incident-migrate:
+    profiles: ["production"]
+
+  airflow-webserver:
+    restart: unless-stopped
+    profiles: ["production"]
+    ports: !reset []
+
+  airflow-scheduler:
+    restart: unless-stopped
+    profiles: ["production"]
+
+  prometheus:
+    restart: unless-stopped
+    profiles: ["production"]
+    ports: !reset []
+
+  metrics-exporter:
+    restart: unless-stopped
+    profiles: ["production"]
+    ports: !reset []
+
+  grafana:
+    restart: unless-stopped
+    profiles: ["production"]
+    ports: !reset []
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+
+volumes:
+  caddy-data:
+  caddy-config:

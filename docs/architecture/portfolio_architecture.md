@@ -12,8 +12,8 @@ flowchart LR
     DBT --> GOLD[Gold Analytics]
     GRT --> PARQUET[Historical Parquet]
     PARQUET --> DBT
-    DBT --> GE[Great Expectations]
-    GE --> DUCK[DuckDB]
+    DBT --> QC[MCT Quality Contracts]
+    QC --> DUCK[DuckDB]
     DUCK --> API[FastAPI /v1]
     API --> DASH[Streamlit]
     API --> PROM[Prometheus Metrics]
@@ -21,4 +21,3 @@ flowchart LR
     RAW -. optional .-> S3[(Amazon S3)]
     PARQUET -. optional .-> S3
 ```
-

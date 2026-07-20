@@ -2,95 +2,644 @@ version: 2
 
 models:
   - name: route_daily_trips
-    description: Scheduled trips per service date and route.
+    description: Scheduled trips at grain service_date + route_id.
+    tests:
+      - unique_combination:
+          arguments:
+            combination_of_columns: [service_date, route_id]
     columns:
       - name: service_date
+        data_type: varchar
         description: GTFS service date.
         tests: [not_null]
       - name: route_id
-        description: Route id.
+        data_type: varchar
+        description: Route id. Part of the model grain.
         tests: [not_null]
+      - name: route_short_name
+        data_type: varchar
+        description: Passenger-facing short route label, nullable when absent in GTFS.
+      - name: route_long_name
+        data_type: varchar
+        description: Passenger-facing long route label, nullable when absent in GTFS.
+      - name: route_type
+        data_type: varchar
+        description: GTFS route type code.
       - name: scheduled_trips_count
+        data_type: integer
         description: Number of scheduled trips.
         tests: [not_null, non_negative]
+
   - name: route_hourly_departures
-    description: Scheduled first-stop departures per service date, route, and service-day hour.
+    description: Scheduled first-stop departures at grain service_date + route_id + departure_hour.
+    tests:
+      - unique_combination:
+          arguments:
+            combination_of_columns: [service_date, route_id, departure_hour]
     columns:
       - name: service_date
+        data_type: varchar
         description: GTFS service date.
         tests: [not_null]
       - name: route_id
+        data_type: varchar
         description: Route id.
         tests: [not_null]
+      - name: route_short_name
+        data_type: varchar
+        description: Passenger-facing short route label.
+      - name: route_long_name
+        data_type: varchar
+        description: Passenger-facing long route label.
       - name: departure_hour
-        description: Service-day hour.
-        tests: [not_null]
+        data_type: integer
+        description: GTFS service-day departure hour; values above 23 remain on the service day.
+        tests: [not_null, valid_departure_hour]
       - name: scheduled_departures_count
-        description: Count of scheduled departures.
+        data_type: integer
+        description: Count of first-stop scheduled departures.
         tests: [not_null, non_negative]
+
   - name: stop_daily_departures
-    description: Scheduled departures per service date and stop.
+    description: Scheduled stop departures at grain service_date + stop_id.
+    tests:
+      - unique_combination:
+          arguments:
+            combination_of_columns: [service_date, stop_id]
     columns:
-      - name: stop_id
-        description: Stop id.
+      - name: service_date
+        data_type: varchar
+        description: GTFS service date.
         tests: [not_null]
+      - name: stop_id
+        data_type: varchar
+        description: Stop id. Part of the model grain.
+        tests: [not_null]
+      - name: stop_name
+        data_type: varchar
+        description: Passenger-facing stop name, nullable when absent in GTFS.
       - name: scheduled_departures_count
+        data_type: integer
         description: Count of scheduled stop departures.
         tests: [not_null, non_negative]
+
   - name: network_daily_summary
-    description: Daily network-level static schedule summary.
+    description: Daily network-level static schedule summary at grain service_date.
+    config:
+      contract:
+        enforced: true
     columns:
       - name: service_date
-        description: GTFS service date.
+        data_type: varchar
+        description: GTFS service date. Primary analytical key.
         tests: [not_null, unique]
       - name: active_routes_count
-        description: Number of active routes.
+        data_type: integer
+        description: Count of distinct active routes from route_daily_trips.
         tests: [not_null, non_negative]
       - name: scheduled_trips_count
-        description: Number of scheduled trips.
+        data_type: integer
+        description: Sum of scheduled_trips_count from route_daily_trips.
         tests: [not_null, non_negative]
       - name: scheduled_stop_departures_count
-        description: Number of scheduled stop departures.
+        data_type: integer
+        description: Sum of scheduled_departures_count from stop_daily_departures.
         tests: [not_null, non_negative]
       - name: active_stops_count
-        description: Number of active stops.
+        data_type: integer
+        description: Count of distinct active stops from stop_daily_departures.
         tests: [not_null, non_negative]
+
   - name: route_period_summary
-    description: Route totals and averages over the GTFS service period.
+    description: Route totals and averages over the GTFS service period at grain route_id.
+    config:
+      contract:
+        enforced: true
     columns:
       - name: route_id
-        description: Route id.
+        data_type: varchar
+        description: Route id. Primary analytical key.
         tests: [not_null, unique]
+      - name: route_short_name
+        data_type: varchar
+        description: Passenger-facing short route label.
+      - name: route_long_name
+        data_type: varchar
+        description: Passenger-facing long route label.
+      - name: route_type
+        data_type: varchar
+        description: GTFS route type code.
+      - name: active_service_days
+        data_type: integer
+        description: Number of service dates where the route is active.
+        tests: [not_null, non_negative]
       - name: total_scheduled_trips
+        data_type: integer
         description: Total scheduled trips over the period.
         tests: [not_null, non_negative]
-  - name: route_hourly_headway
-    description: Approximate planned headway in minutes by route and hour.
-    columns:
-      - name: planned_headway_minutes
-        description: Sixty divided by scheduled departures in the route/hour bucket.
-  - name: route_type_daily_summary
-    description: Daily scheduled activity summarized by GTFS route type.
-    columns:
-      - name: route_type
-        description: GTFS route type code.
-        tests:
-          - accepted_values:
-              values: ["0", "1", "2", "3", "4", "5", "6", "7"]
-  - name: busiest_route_day
-    description: Top 50 route/date combinations by scheduled trips.
-  - name: busiest_stop_day
-    description: Top 50 stop/date combinations by scheduled departures.
-  - name: route_delay_history
-    description: Average, minimum, maximum, and p95 observed delay by route over collected snapshots.
-  - name: stop_delay_history
-    description: Average, minimum, maximum, and p95 observed delay by stop over collected snapshots.
-  - name: delay_evolution_by_hour
-    description: Hourly delay trend from preserved snapshots.
-  - name: feed_freshness_trend
-    description: Hourly feed age and parse volume trend.
-  - name: trip_match_trend
-    description: Observed trip, route, and stop volume trend by hour.
-  - name: daily_summary
-    description: Daily historical summary across all observed stop-time updates.
+      - name: average_trips_per_active_day
+        data_type: double
+        description: Average scheduled trips per active service date.
+      - name: max_daily_trips
+        data_type: integer
+        description: Maximum scheduled trips on one service date.
+        tests: [not_null, non_negative]
+      - name: first_service_date
+        data_type: varchar
+        description: First service date observed for the route.
+      - name: last_service_date
+        data_type: varchar
+        description: Last service date observed for the route.
 
+  - name: route_hourly_headway
+    description: Approximate planned headway at grain service_date + route_id + departure_hour.
+    tests:
+      - unique_combination:
+          arguments:
+            combination_of_columns: [service_date, route_id, departure_hour]
+    columns:
+      - name: service_date
+        data_type: varchar
+        description: GTFS service date.
+        tests: [not_null]
+      - name: route_id
+        data_type: varchar
+        description: Route id.
+        tests: [not_null]
+      - name: route_short_name
+        data_type: varchar
+        description: Passenger-facing short route label.
+      - name: route_long_name
+        data_type: varchar
+        description: Passenger-facing long route label.
+      - name: departure_hour
+        data_type: integer
+        description: GTFS service-day departure hour.
+        tests: [not_null, valid_departure_hour]
+      - name: scheduled_departures_count
+        data_type: integer
+        description: Count of route first-stop departures in the hour.
+        tests: [not_null, non_negative]
+      - name: planned_headway_minutes
+        data_type: double
+        description: Sixty divided by scheduled departures in the route/hour bucket.
+
+  - name: route_type_daily_summary
+    description: Daily scheduled activity at grain service_date + route_type.
+    config:
+      contract:
+        enforced: true
+    tests:
+      - unique_combination:
+          arguments:
+            combination_of_columns: [service_date, route_type]
+    columns:
+      - name: service_date
+        data_type: varchar
+        description: GTFS service date.
+        tests: [not_null]
+      - name: route_type
+        data_type: varchar
+        description: GTFS route type code. Part of the model grain.
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ["0", "1", "2", "3", "4", "5", "6", "7"]
+      - name: route_type_label
+        data_type: varchar
+        description: Human-readable route type label.
+        tests: [not_null]
+      - name: active_routes_count
+        data_type: integer
+        description: Count of distinct active routes in this route type.
+        tests: [not_null, non_negative]
+      - name: scheduled_trips_count
+        data_type: integer
+        description: Scheduled trip count in this route type.
+        tests: [not_null, non_negative]
+      - name: scheduled_stop_departures_count
+        data_type: integer
+        description: Scheduled stop departures from trips in this route type.
+        tests: [not_null, non_negative]
+
+  - name: busiest_route_day
+    description: Top 50 route/date combinations by scheduled trips at grain rank.
+    tests:
+      - unique_combination:
+          arguments:
+            combination_of_columns: [service_date, route_id]
+    columns:
+      - name: service_date
+        data_type: varchar
+        description: GTFS service date.
+        tests: [not_null]
+      - name: route_id
+        data_type: varchar
+        description: Route id.
+        tests: [not_null]
+      - name: route_short_name
+        data_type: varchar
+        description: Passenger-facing short route label.
+      - name: route_long_name
+        data_type: varchar
+        description: Passenger-facing long route label.
+      - name: scheduled_trips_count
+        data_type: integer
+        description: Number of scheduled trips.
+        tests: [not_null, non_negative]
+      - name: rank
+        data_type: integer
+        description: Rank ordered by scheduled trips descending.
+        tests: [not_null, unique]
+
+  - name: busiest_stop_day
+    description: Top 50 stop/date combinations by scheduled departures at grain rank.
+    tests:
+      - unique_combination:
+          arguments:
+            combination_of_columns: [service_date, stop_id]
+    columns:
+      - name: service_date
+        data_type: varchar
+        description: GTFS service date.
+        tests: [not_null]
+      - name: stop_id
+        data_type: varchar
+        description: Stop id.
+        tests: [not_null]
+      - name: stop_name
+        data_type: varchar
+        description: Passenger-facing stop name.
+      - name: scheduled_departures_count
+        data_type: integer
+        description: Number of scheduled departures.
+        tests: [not_null, non_negative]
+      - name: rank
+        data_type: integer
+        description: Rank ordered by scheduled stop departures descending.
+        tests: [not_null, unique]
+
+  - name: route_delay_history
+    description: Historical observed delay by route at grain route_id.
+    columns:
+      - name: route_id
+        data_type: varchar
+        description: Realtime route id.
+        tests: [not_null, unique]
+      - name: updates_collected
+        data_type: integer
+        description: Number of stop-time updates observed.
+        tests: [not_null, non_negative]
+
+  - name: stop_delay_history
+    description: Historical observed delay by stop at grain stop_id.
+    columns:
+      - name: stop_id
+        data_type: varchar
+        description: Realtime stop id.
+        tests: [not_null, unique]
+      - name: updates_collected
+        data_type: integer
+        description: Number of stop-time updates observed.
+        tests: [not_null, non_negative]
+
+  - name: delay_evolution_by_hour
+    description: Hourly delay trend at grain collection_date + collection_hour.
+    tests:
+      - unique_combination:
+          arguments:
+            combination_of_columns: [collection_date, collection_hour]
+
+  - name: feed_freshness_trend
+    description: Hourly feed age and parse volume trend at grain collection_date + collection_hour.
+    tests:
+      - unique_combination:
+          arguments:
+            combination_of_columns: [collection_date, collection_hour]
+
+  - name: trip_match_trend
+    description: Observed trip, route, and stop volume trend at grain collection_date + collection_hour.
+    tests:
+      - unique_combination:
+          arguments:
+            combination_of_columns: [collection_date, collection_hour]
+
+  - name: daily_summary
+    description: Daily historical summary at grain collection_date.
+    columns:
+      - name: collection_date
+        data_type: varchar
+        description: Realtime collection date.
+        tests: [not_null, unique]
+
+  - name: realtime_trip_coverage
+    description: Authoritative dbt realtime trip coverage. Grain is source + service_date + route_id + service_period + feed_type + calculation_version.
+    config:
+      contract:
+        enforced: true
+    tests:
+      - unique_combination:
+          arguments:
+            combination_of_columns: [source, service_date, route_id, service_period, feed_type, calculation_version]
+    columns:
+      - name: source
+        data_type: varchar
+        description: Namespaced source identifier.
+        tests: [not_null]
+      - name: service_date
+        data_type: varchar
+        description: Source-local GTFS service date.
+        tests: [not_null]
+      - name: route_id
+        data_type: varchar
+        description: Route identifier within source.
+        tests: [not_null]
+      - name: service_period
+        data_type: varchar
+        description: Analytical service period bucket.
+        tests: [not_null]
+      - name: feed_type
+        data_type: varchar
+        description: Realtime feed type.
+        tests: [not_null]
+      - name: calculation_version
+        data_type: varchar
+        description: KPI calculation version.
+        tests: [not_null]
+      - name: eligible_scheduled_trip_count
+        data_type: integer
+        description: Eligible scheduled trips denominator.
+        tests: [not_null, non_negative]
+      - name: observed_eligible_trip_count
+        data_type: integer
+        description: Matched realtime trip observations numerator.
+        tests: [not_null, non_negative]
+      - name: unobserved_eligible_trip_count
+        data_type: integer
+        description: Eligible scheduled trips with no Trip Update evidence.
+        tests: [not_null, non_negative]
+      - name: unmatched_realtime_trip_count
+        data_type: integer
+        description: Realtime trip observations not matched to eligible scheduled trips.
+        tests: [not_null, non_negative]
+      - name: ambiguous_realtime_trip_count
+        data_type: integer
+        description: Ambiguous realtime observations.
+        tests: [not_null, non_negative]
+      - name: explicit_cancellation_count
+        data_type: integer
+        description: Explicit matched cancellation observations.
+        tests: [not_null, non_negative]
+      - name: coverage_percentage
+        data_type: double
+        description: observed_eligible_trip_count / eligible_scheduled_trip_count * 100.
+      - name: coverage_status
+        data_type: varchar
+        description: Coverage semantic status.
+        tests: [not_null]
+      - name: confidence_status
+        data_type: varchar
+        description: Confidence derived from coverage.
+        tests: [not_null]
+
+  - name: fct_realtime_delay_observations
+    description: Authoritative delay observation fact. Grain is delay_observation_key.
+    columns:
+      - name: delay_observation_key
+        data_type: varchar
+        description: Deterministic delay observation key.
+        tests: [not_null, unique]
+      - name: source
+        data_type: varchar
+        description: Namespaced source identifier.
+        tests: [not_null]
+      - name: delay_seconds
+        data_type: double
+        description: Selected arrival or departure delay; null is not zero.
+      - name: delay_source
+        data_type: varchar
+        description: ARRIVAL_DELAY, DEPARTURE_DELAY, or NO_DELAY_FIELD.
+        tests: [not_null]
+      - name: is_eligible_delay_observation
+        data_type: boolean
+        description: Current, plausible observation with usable delay.
+        tests: [not_null]
+      - name: calculation_version
+        data_type: varchar
+        description: KPI calculation version.
+        tests: [not_null]
+
+  - name: route_delay_distribution
+    description: Authoritative route delay distribution. Grain is source + service_date + service_period + route_id + direction_id + calculation_version.
+    columns: &delay_distribution_columns
+      - name: source
+        data_type: varchar
+        description: Namespaced source identifier.
+        tests: [not_null]
+      - name: service_date
+        data_type: varchar
+        description: Source-local service date.
+        tests: [not_null]
+      - name: service_period
+        data_type: varchar
+        description: Analytical service period.
+        tests: [not_null]
+      - name: calculation_version
+        data_type: varchar
+        description: KPI calculation version.
+        tests: [not_null]
+      - name: eligible_observation_count
+        data_type: integer
+        description: Usable delay observations.
+        tests: [not_null, non_negative]
+      - name: coverage_percentage
+        data_type: double
+        description: Matched trip coverage percentage.
+      - name: confidence_status
+        data_type: varchar
+        description: Confidence/sample-size status.
+        tests: [not_null]
+
+  - name: stop_delay_distribution
+    description: Authoritative stop delay distribution. Grain is source + service_date + service_period + route_id + direction_id + stop_id + calculation_version.
+    columns: *delay_distribution_columns
+
+  - name: network_delay_distribution
+    description: Authoritative network delay distribution. Grain is source + service_date + service_period + calculation_version.
+    columns: *delay_distribution_columns
+
+  - name: route_on_time_performance
+    description: Authoritative route OTP using configured project thresholds. Grain is source + service_date + service_period + route_id + threshold_profile + calculation_version.
+    columns:
+      - name: source
+        data_type: varchar
+        description: Namespaced source identifier.
+        tests: [not_null]
+      - name: route_id
+        data_type: varchar
+        description: Route identifier.
+        tests: [not_null]
+      - name: eligible_delay_observation_count
+        data_type: integer
+        description: Usable delay denominator.
+        tests: [not_null, non_negative]
+      - name: on_time_percentage
+        data_type: double
+        description: On-time observations divided by eligible usable delays.
+      - name: calculation_version
+        data_type: varchar
+        description: KPI calculation version.
+        tests: [not_null]
+
+  - name: network_on_time_performance
+    description: Authoritative network OTP using configured project thresholds.
+    columns:
+      - name: source
+        data_type: varchar
+        description: Namespaced source identifier.
+        tests: [not_null]
+      - name: eligible_delay_observation_count
+        data_type: integer
+        description: Usable delay denominator.
+        tests: [not_null, non_negative]
+      - name: on_time_percentage
+        data_type: double
+        description: On-time percentage.
+      - name: calculation_version
+        data_type: varchar
+        description: KPI calculation version.
+        tests: [not_null]
+
+  - name: fct_explicit_trip_cancellations
+    description: Explicit cancellation fact populated only from GTFS-Realtime cancellation evidence. Grain is cancellation_evidence_key.
+    columns:
+      - name: cancellation_evidence_key
+        data_type: varchar
+        description: Deterministic cancellation evidence key.
+        tests: [not_null, unique]
+      - name: source
+        data_type: varchar
+        description: Namespaced source identifier.
+        tests: [not_null]
+      - name: evidence_type
+        data_type: varchar
+        description: Explicit realtime evidence type.
+        tests: [not_null]
+      - name: calculation_version
+        data_type: varchar
+        description: KPI calculation version.
+        tests: [not_null]
+
+  - name: fct_observed_headways
+    description: Observed headway fact. Grain is source + service_date + route + direction + reference_stop + method + leading/following trip.
+    columns:
+      - name: headway_key
+        data_type: varchar
+        description: Deterministic headway key.
+        tests: [not_null, unique]
+      - name: source
+        data_type: varchar
+        description: Namespaced source identifier.
+        tests: [not_null]
+      - name: observed_headway_seconds
+        data_type: integer
+        description: Observed time between ordered trip observations.
+      - name: observation_method
+        data_type: varchar
+        description: VEHICLE_POSITION_PASSAGE or TRIP_UPDATE_APPROXIMATION.
+        tests: [not_null]
+      - name: calculation_version
+        data_type: varchar
+        description: KPI calculation version.
+        tests: [not_null]
+
+  - name: fct_headway_reliability_events
+    description: Bunching and service-gap events from observed headways.
+    columns:
+      - name: evidence_key
+        data_type: varchar
+        description: Deterministic event evidence key.
+        tests: [not_null, unique]
+      - name: event_type
+        data_type: varchar
+        description: BUNCHING or SERVICE_GAP.
+        tests: [not_null]
+      - name: source
+        data_type: varchar
+        description: Namespaced source identifier.
+        tests: [not_null]
+      - name: calculation_version
+        data_type: varchar
+        description: KPI calculation version.
+        tests: [not_null]
+
+  - name: route_excess_waiting_time
+    description: Excess waiting time by route/stop/method. Ineligible tiny samples return explicit exclusion semantics.
+    columns:
+      - name: source
+        data_type: varchar
+        description: Namespaced source identifier.
+        tests: [not_null]
+      - name: eligibility_status
+        data_type: varchar
+        description: ELIGIBLE or explicit not-enough-data state.
+        tests: [not_null]
+      - name: excess_waiting_time_seconds
+        data_type: double
+        description: Actual expected wait minus scheduled expected wait when eligible.
+      - name: calculation_version
+        data_type: varchar
+        description: KPI calculation version.
+        tests: [not_null]
+
+  - name: network_reliability_summary
+    description: Network reliability status matrix. Grain is source + service_date + service_period + calculation_version.
+    columns:
+      - name: source
+        data_type: varchar
+        description: Namespaced source identifier.
+        tests: [not_null]
+      - name: service_date
+        data_type: varchar
+        description: Source-local service date.
+        tests: [not_null]
+      - name: service_period
+        data_type: varchar
+        description: Analytical service period.
+        tests: [not_null]
+      - name: calculation_version
+        data_type: varchar
+        description: KPI calculation version.
+        tests: [not_null]
+      - name: eligible_scheduled_trip_count
+        data_type: integer
+        description: Eligible scheduled trips.
+        tests: [not_null, non_negative]
+      - name: realtime_coverage_percentage
+        data_type: double
+        description: Realtime coverage percentage.
+      - name: confidence_status
+        data_type: varchar
+        description: Overall confidence status.
+        tests: [not_null]
+
+  - name: reliability_incident_snapshot
+    description: Queryable reliability metrics prepared as future incident evaluator input.
+    columns:
+      - name: source
+        data_type: varchar
+        description: Namespaced source identifier.
+        tests: [not_null]
+      - name: entity_type
+        data_type: varchar
+        description: Entity type.
+        tests: [not_null]
+      - name: metric_name
+        data_type: varchar
+        description: Metric name.
+        tests: [not_null]
+      - name: calculation_version
+        data_type: varchar
+        description: KPI calculation version.
+        tests: [not_null]
