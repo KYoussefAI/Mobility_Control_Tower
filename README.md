@@ -1,4 +1,4 @@
-# Mobility Control Tower — Milestone 01
+# Mobility Control Tower 
 
 This foundation establishes the Python package, shared core helpers, and the command-line entry point.
 
