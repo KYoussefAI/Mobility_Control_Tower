@@ -1,4 +1,4 @@
-# Mobility Control Tower — Milestone 03
+# Mobility Control Tower 
 
 The project now supports the configured static Tisséo GTFS source and preserves each downloaded archive as an immutable Raw artifact with provenance metadata.
 
