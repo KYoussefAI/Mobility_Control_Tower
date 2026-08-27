@@ -1,9 +1,9 @@
-# Mobility Control Tower — Milestone 01
+# Mobility Control Tower — Milestone 03
 
-This foundation establishes the Python package, shared core helpers, and the command-line entry point.
+The project now supports the configured static Tisséo GTFS source and preserves each downloaded archive as an immutable Raw artifact with provenance metadata.
 
 ```bash
-python -m mobility_control_tower.cli --help
+mobility-control-tower ingest-gtfs
 ```
 
-The project is intentionally small at this stage: it provides a stable base for later milestones without claiming capabilities that are not yet implemented.
+Repeated ingestion keeps prior source archives intact so every acquired feed remains auditable.

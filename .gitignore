@@ -10,3 +10,9 @@ coverage.xml
 *.egg-info/
 .env
 *.zip
+
+data/raw/*
+!data/raw/manual/
+!data/raw/manual/.gitkeep
+!data/raw/tisseo/
+!data/raw/tisseo/.gitkeep

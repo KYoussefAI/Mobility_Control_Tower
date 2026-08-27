@@ -9,6 +9,7 @@ description = "Local public transport data engineering platform"
 requires-python = ">=3.10"
 dependencies = [
   "PyYAML>=6.0,<7",
+  "requests>=2.31,<3",
 ]
 
 [project.optional-dependencies]
