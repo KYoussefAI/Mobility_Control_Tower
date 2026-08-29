@@ -6,6 +6,8 @@ import argparse
 from pathlib import Path
 from mobility_control_tower.config import load_source
 from mobility_control_tower.ingestion.gtfs_raw import download_and_preserve_gtfs, preserve_gtfs_zip
+from mobility_control_tower.profiling.gtfs_profile import profile_raw_run
+from mobility_control_tower.transformations.gtfs_bronze import build_bronze
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -18,6 +20,12 @@ def build_parser() -> argparse.ArgumentParser:
     mode.add_argument("--download", action="store_true")
     ingest.add_argument("--config", type=Path, default=Path("config/sources.yml"))
     ingest.add_argument("--raw-root", type=Path, default=Path("data/raw"))
+    profile = commands.add_parser("profile-gtfs")
+    profile.add_argument("--raw-run", type=Path, required=True)
+    profile.add_argument("--reports-dir", type=Path, default=Path("data/reports"))
+    bronze = commands.add_parser("build-bronze")
+    bronze.add_argument("--raw-run", type=Path, required=True)
+    bronze.add_argument("--bronze-root", type=Path, default=Path("data/bronze"))
     return parser
 
 
@@ -28,6 +36,8 @@ def main() -> int:
         if args.command == "ingest-gtfs":
             source = load_source(args.source, args.config)
             result = preserve_gtfs_zip(args.local_zip, args.source, source, args.raw_root) if args.local_zip else download_and_preserve_gtfs(args.source, source, args.raw_root)
+        elif args.command == "profile-gtfs": result = profile_raw_run(args.raw_run, args.reports_dir)
+        elif args.command == "build-bronze": result = build_bronze(args.raw_run, args.bronze_root)
         if result is not None:
             print(result)
         return 0

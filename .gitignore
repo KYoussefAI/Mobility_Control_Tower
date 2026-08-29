@@ -16,3 +16,8 @@ data/raw/*
 !data/raw/manual/.gitkeep
 !data/raw/tisseo/
 !data/raw/tisseo/.gitkeep
+
+data/bronze/*
+!data/bronze/.gitkeep
+data/reports/*
+!data/reports/.gitkeep

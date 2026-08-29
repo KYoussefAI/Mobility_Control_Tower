@@ -2,15 +2,15 @@
 
 ## Overview
 
-Mobility Control Tower is a local-first public-transport data engineering project. In this snapshot, it provides reproducible ingestion for the configured Tisséo static GTFS feed. Each acquisition is retained as an immutable Raw archive with provenance and integrity metadata, creating an auditable source for later processing.
+This snapshot extends immutable Tisséo GTFS ingestion with source profiling and a Bronze representation. Raw remains the acquisition record; Bronze extracts the feed into table-level files while preserving source values for inspection and downstream transformation.
 
 ## Architecture
 
 ```text
-Configured GTFS source -> Raw run directory -> archive + manifest
+GTFS source -> immutable Raw archive -> profile -> Bronze tables
 ```
 
-The ingestion layer downloads the source without interpreting its tables. Run-specific storage prevents later acquisitions from overwriting earlier evidence.
+Raw runs retain the archive and provenance metadata. Profiling records structural characteristics of the feed, while Bronze materializes source tables without applying the canonical cleaning rules of a curated layer.
 
 ## Running the Project
 
@@ -20,8 +20,8 @@ mobility-control-tower --help
 mobility-control-tower ingest-gtfs
 ```
 
-Source configuration is held in `config/sources.yml`. See [`docs/data_source.md`](docs/data_source.md) for the source and provenance contract.
+Use CLI help for the profiling and Bronze options available here. Source details are in [`docs/data_source.md`](docs/data_source.md).
 
-## Current Boundary
+## Verification and Limitations
 
-This snapshot covers acquisition and Raw preservation only. It does not profile or transform GTFS tables, validate analytical quality, build marts, or provide a serving interface. Storage is local and execution is manual.
+Tests cover GTFS profiling in addition to ingestion. The pipeline remains local and manually invoked. There is no Silver layer, formal quality contract, analytical mart, or serving component.
