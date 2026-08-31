@@ -8,6 +8,7 @@ from mobility_control_tower.config import load_source
 from mobility_control_tower.ingestion.gtfs_raw import download_and_preserve_gtfs, preserve_gtfs_zip
 from mobility_control_tower.profiling.gtfs_profile import profile_raw_run
 from mobility_control_tower.transformations.gtfs_bronze import build_bronze
+from mobility_control_tower.transformations.gtfs_silver import build_silver
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -26,6 +27,9 @@ def build_parser() -> argparse.ArgumentParser:
     bronze = commands.add_parser("build-bronze")
     bronze.add_argument("--raw-run", type=Path, required=True)
     bronze.add_argument("--bronze-root", type=Path, default=Path("data/bronze"))
+    silver = commands.add_parser("build-silver")
+    silver.add_argument("--bronze-run", type=Path, required=True)
+    silver.add_argument("--silver-root", type=Path, default=Path("data/silver"))
     return parser
 
 
@@ -38,6 +42,7 @@ def main() -> int:
             result = preserve_gtfs_zip(args.local_zip, args.source, source, args.raw_root) if args.local_zip else download_and_preserve_gtfs(args.source, source, args.raw_root)
         elif args.command == "profile-gtfs": result = profile_raw_run(args.raw_run, args.reports_dir)
         elif args.command == "build-bronze": result = build_bronze(args.raw_run, args.bronze_root)
+        elif args.command == "build-silver": result = build_silver(args.bronze_run, args.silver_root)
         if result is not None:
             print(result)
         return 0

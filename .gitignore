@@ -21,3 +21,6 @@ data/bronze/*
 !data/bronze/.gitkeep
 data/reports/*
 !data/reports/.gitkeep
+
+data/silver/*
+!data/silver/.gitkeep
