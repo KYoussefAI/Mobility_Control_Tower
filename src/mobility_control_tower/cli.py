@@ -9,6 +9,7 @@ from mobility_control_tower.ingestion.gtfs_raw import download_and_preserve_gtfs
 from mobility_control_tower.profiling.gtfs_profile import profile_raw_run
 from mobility_control_tower.transformations.gtfs_bronze import build_bronze
 from mobility_control_tower.transformations.gtfs_silver import build_silver
+from mobility_control_tower.quality.gtfs_quality import validate_silver_run
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -30,6 +31,9 @@ def build_parser() -> argparse.ArgumentParser:
     silver = commands.add_parser("build-silver")
     silver.add_argument("--bronze-run", type=Path, required=True)
     silver.add_argument("--silver-root", type=Path, default=Path("data/silver"))
+    validate = commands.add_parser("validate-gtfs")
+    validate.add_argument("--silver-run", type=Path, required=True)
+    validate.add_argument("--reports-dir", type=Path, default=Path("data/reports"))
     return parser
 
 
@@ -43,6 +47,7 @@ def main() -> int:
         elif args.command == "profile-gtfs": result = profile_raw_run(args.raw_run, args.reports_dir)
         elif args.command == "build-bronze": result = build_bronze(args.raw_run, args.bronze_root)
         elif args.command == "build-silver": result = build_silver(args.bronze_run, args.silver_root)
+        elif args.command == "validate-gtfs": result = validate_silver_run(args.silver_run, args.reports_dir)
         if result is not None:
             print(result)
         return 0
