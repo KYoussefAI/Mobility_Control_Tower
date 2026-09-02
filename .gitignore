@@ -29,3 +29,6 @@ quality_contracts/validation_results/*
 !quality_contracts/validation_results/.gitkeep
 quality_contracts/data_docs/local_site/*
 !quality_contracts/data_docs/local_site/.gitkeep
+
+data/gold/*
+!data/gold/.gitkeep

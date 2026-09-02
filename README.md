@@ -2,23 +2,25 @@
 
 ## Overview
 
-The static Tisséo pipeline couples Raw, Bronze, and Silver processing with explicit data-quality validation. Declarative expectations and a checkpoint assess curated Silver tables, while validation results remain separate from the data they evaluate.
+The validated static GTFS pipeline produces schedule-based transport indicators and reports. Python derives network and route activity from canonical Silver tables and renders local analytical outputs without an external service.
 
-## Architecture
+## Data Flow
 
 ```text
-GTFS -> Raw -> Bronze -> Silver -> quality contract -> validation result
+GTFS -> Raw -> Bronze -> Silver -> quality validation -> Python Gold metrics and reports
 ```
 
-Python owns ingestion and layer construction. The quality component checks structural and domain assumptions after normalization, making the acceptance boundary visible rather than treating file creation as proof of usable data.
+The analytical layer uses scheduled service, not observed vehicle movement. Its results describe planned activity and must not be interpreted as measured operational performance.
 
-## Running and Verification
+## Running the Project
 
 ```bash
-python -m pip install -e '.[quality]'
-mobility-control-tower --help
+python -m pip install -e '.[quality,analytics]'
+mobility-control-tower build-gold
 ```
 
-The checked invariants are described in [`docs/data_quality.md`](docs/data_quality.md); source provenance is covered by [`docs/data_source.md`](docs/data_source.md). Tests exercise the static pipeline and validation behavior.
+See [`docs/data_quality.md`](docs/data_quality.md) and [`docs/data_source.md`](docs/data_source.md) for validation and provenance.
 
-There are no Gold marts, serving database, API, or scheduler. Operation is local and manual.
+## Limitations
+
+Gold construction is implemented in Python here. There is no dbt project, serving database, API, dashboard, or GTFS-Realtime ingestion.

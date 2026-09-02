@@ -10,6 +10,9 @@ from mobility_control_tower.profiling.gtfs_profile import profile_raw_run
 from mobility_control_tower.transformations.gtfs_bronze import build_bronze
 from mobility_control_tower.transformations.gtfs_silver import build_silver
 from mobility_control_tower.quality.gtfs_quality import validate_silver_run
+from mobility_control_tower.metrics.gtfs_kpis import build_gold
+from mobility_control_tower.reporting.charts import generate_static_charts
+from mobility_control_tower.reporting.demo_report import generate_demo_report, generate_static_mvp_report
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -34,6 +37,18 @@ def build_parser() -> argparse.ArgumentParser:
     validate = commands.add_parser("validate-gtfs")
     validate.add_argument("--silver-run", type=Path, required=True)
     validate.add_argument("--reports-dir", type=Path, default=Path("data/reports"))
+    gold = commands.add_parser("build-gold", help="Build initial static KPI tables")
+    gold.add_argument("--silver-run", type=Path, required=True)
+    gold.add_argument("--gold-root", type=Path, default=Path("data/gold"))
+    report = commands.add_parser("generate-demo-report")
+    report.add_argument("--gold-run", type=Path, required=True)
+    report.add_argument("--reports-dir", type=Path, default=Path("data/reports"))
+    charts = commands.add_parser("generate-static-charts")
+    charts.add_argument("--gold-run", type=Path, required=True)
+    charts.add_argument("--reports-dir", type=Path, default=Path("data/reports"))
+    mvp = commands.add_parser("generate-static-mvp-report")
+    mvp.add_argument("--gold-run", type=Path, required=True)
+    mvp.add_argument("--reports-dir", type=Path, default=Path("data/reports"))
     return parser
 
 
@@ -48,6 +63,10 @@ def main() -> int:
         elif args.command == "build-bronze": result = build_bronze(args.raw_run, args.bronze_root)
         elif args.command == "build-silver": result = build_silver(args.bronze_run, args.silver_root)
         elif args.command == "validate-gtfs": result = validate_silver_run(args.silver_run, args.reports_dir)
+        elif args.command == "build-gold": result = build_gold(args.silver_run, args.gold_root)
+        elif args.command == "generate-demo-report": result = generate_demo_report(args.gold_run, args.reports_dir)
+        elif args.command == "generate-static-charts": result = generate_static_charts(args.gold_run, args.reports_dir)
+        elif args.command == "generate-static-mvp-report": result = generate_static_mvp_report(args.gold_run, args.reports_dir)
         if result is not None:
             print(result)
         return 0
