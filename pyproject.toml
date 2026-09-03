@@ -17,6 +17,7 @@ dependencies = [
 [project.optional-dependencies]
 dev = ["pytest>=8,<9", "coverage[toml]>=7,<8"]
 quality = ["ruff>=0.6,<1", "black>=24,<25", "isort>=5,<6", "mypy>=1,<2", "types-PyYAML", "types-requests"]
+analytics = ["dbt-core>=1.10,<2", "dbt-duckdb>=1.10,<2"]
 
 [project.scripts]
 mobility-control-tower = "mobility_control_tower.cli:main"

@@ -1,0 +1,47 @@
+unit_tests:
+  - name: network_daily_summary_no_fanout
+    model: network_daily_summary
+    given:
+      - input: ref('route_daily_trips')
+        rows:
+          - {service_date: "2026-01-05", route_id: "R1", route_short_name: "A", route_long_name: "Airport", route_type: "3", scheduled_trips_count: 2}
+          - {service_date: "2026-01-05", route_id: "R2", route_short_name: "M", route_long_name: "Metro", route_type: "1", scheduled_trips_count: 5}
+      - input: ref('stop_daily_departures')
+        rows:
+          - {service_date: "2026-01-05", stop_id: "S1", stop_name: "Central", scheduled_departures_count: 4}
+          - {service_date: "2026-01-05", stop_id: "S2", stop_name: "North", scheduled_departures_count: 6}
+          - {service_date: "2026-01-05", stop_id: "S3", stop_name: "South", scheduled_departures_count: 8}
+    expect:
+      rows:
+        - {service_date: "2026-01-05", active_routes_count: 2, scheduled_trips_count: 7, scheduled_stop_departures_count: 18, active_stops_count: 3}
+
+  - name: route_type_daily_summary_no_fanout
+    model: route_type_daily_summary
+    given:
+      - input: ref('route_daily_trips')
+        rows:
+          - {service_date: "2026-01-05", route_id: "R1", route_short_name: "A", route_long_name: "Airport", route_type: "3", scheduled_trips_count: 2}
+          - {service_date: "2026-01-05", route_id: "R2", route_short_name: "M", route_long_name: "Metro", route_type: "1", scheduled_trips_count: 5}
+      - input: ref('int_route_type_stop_departures')
+        rows:
+          - {service_date: "2026-01-05", route_type: "3", stop_id: "S1", scheduled_departures_count: 4}
+          - {service_date: "2026-01-05", route_type: "3", stop_id: "S2", scheduled_departures_count: 6}
+          - {service_date: "2026-01-05", route_type: "1", stop_id: "S2", scheduled_departures_count: 3}
+          - {service_date: "2026-01-05", route_type: "1", stop_id: "S3", scheduled_departures_count: 5}
+    expect:
+      rows:
+        - {service_date: "2026-01-05", route_type: "1", route_type_label: "Subway/Metro", active_routes_count: 1, scheduled_trips_count: 5, scheduled_stop_departures_count: 8}
+        - {service_date: "2026-01-05", route_type: "3", route_type_label: "Bus", active_routes_count: 1, scheduled_trips_count: 2, scheduled_stop_departures_count: 10}
+
+  - name: route_type_daily_summary_missing_labels_preserve_counts
+    model: route_type_daily_summary
+    given:
+      - input: ref('route_daily_trips')
+        rows:
+          - {service_date: "2026-01-06", route_id: "R3", route_short_name: "", route_long_name: "", route_type: "3", scheduled_trips_count: 1}
+      - input: ref('int_route_type_stop_departures')
+        rows:
+          - {service_date: "2026-01-06", route_type: "3", stop_id: "S9", scheduled_departures_count: 2}
+    expect:
+      rows:
+        - {service_date: "2026-01-06", route_type: "3", route_type_label: "Bus", active_routes_count: 1, scheduled_trips_count: 1, scheduled_stop_departures_count: 2}

@@ -2,25 +2,28 @@
 
 ## Overview
 
-The validated static GTFS pipeline produces schedule-based transport indicators and reports. Python derives network and route activity from canonical Silver tables and renders local analytical outputs without an external service.
+The analytical boundary is explicit: Python owns GTFS ingestion and Raw, Bronze, and Silver; dbt owns analytical transformations from Silver to Gold. The dbt project provides staging, intermediate models, tested marts, reconciliation tests, and unit tests for schedule-based indicators.
 
-## Data Flow
+## Architecture
 
-```text
-GTFS -> Raw -> Bronze -> Silver -> quality validation -> Python Gold metrics and reports
+```mermaid
+flowchart LR
+    G[GTFS] --> P[Python: Raw / Bronze / Silver]
+    P --> Q[Silver quality]
+    Q --> D[dbt staging and intermediate]
+    D --> M[dbt Gold marts]
 ```
 
-The analytical layer uses scheduled service, not observed vehicle movement. Its results describe planned activity and must not be interpreted as measured operational performance.
-
-## Running the Project
+## Running and Verification
 
 ```bash
 python -m pip install -e '.[quality,analytics]'
-mobility-control-tower build-gold
+mobility-control-tower run-dbt
+mobility-control-tower test-dbt
 ```
 
-See [`docs/data_quality.md`](docs/data_quality.md) and [`docs/data_source.md`](docs/data_source.md) for validation and provenance.
+The commands require a valid Silver run; use CLI help for arguments. dbt configuration and models live under `dbt/`.
 
 ## Limitations
 
-Gold construction is implemented in Python here. There is no dbt project, serving database, API, dashboard, or GTFS-Realtime ingestion.
+Gold marts are local build artifacts. No serving database, API, dashboard, realtime feed, or orchestrator exists. dbt success is not substituted by a Python Gold fallback.

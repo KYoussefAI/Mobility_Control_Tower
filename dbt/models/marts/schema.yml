@@ -1,0 +1,281 @@
+version: 2
+
+models:
+  - name: route_daily_trips
+    description: Scheduled trips at grain service_date + route_id.
+    tests:
+      - unique_combination:
+          arguments:
+            combination_of_columns: [service_date, route_id]
+    columns:
+      - name: service_date
+        data_type: varchar
+        description: GTFS service date.
+        tests: [not_null]
+      - name: route_id
+        data_type: varchar
+        description: Route id. Part of the model grain.
+        tests: [not_null]
+      - name: route_short_name
+        data_type: varchar
+        description: Passenger-facing short route label, nullable when absent in GTFS.
+      - name: route_long_name
+        data_type: varchar
+        description: Passenger-facing long route label, nullable when absent in GTFS.
+      - name: route_type
+        data_type: varchar
+        description: GTFS route type code.
+      - name: scheduled_trips_count
+        data_type: integer
+        description: Number of scheduled trips.
+        tests: [not_null, non_negative]
+
+  - name: route_hourly_departures
+    description: Scheduled first-stop departures at grain service_date + route_id + departure_hour.
+    tests:
+      - unique_combination:
+          arguments:
+            combination_of_columns: [service_date, route_id, departure_hour]
+    columns:
+      - name: service_date
+        data_type: varchar
+        description: GTFS service date.
+        tests: [not_null]
+      - name: route_id
+        data_type: varchar
+        description: Route id.
+        tests: [not_null]
+      - name: route_short_name
+        data_type: varchar
+        description: Passenger-facing short route label.
+      - name: route_long_name
+        data_type: varchar
+        description: Passenger-facing long route label.
+      - name: departure_hour
+        data_type: integer
+        description: GTFS service-day departure hour; values above 23 remain on the service day.
+        tests: [not_null, valid_departure_hour]
+      - name: scheduled_departures_count
+        data_type: integer
+        description: Count of first-stop scheduled departures.
+        tests: [not_null, non_negative]
+
+  - name: stop_daily_departures
+    description: Scheduled stop departures at grain service_date + stop_id.
+    tests:
+      - unique_combination:
+          arguments:
+            combination_of_columns: [service_date, stop_id]
+    columns:
+      - name: service_date
+        data_type: varchar
+        description: GTFS service date.
+        tests: [not_null]
+      - name: stop_id
+        data_type: varchar
+        description: Stop id. Part of the model grain.
+        tests: [not_null]
+      - name: stop_name
+        data_type: varchar
+        description: Passenger-facing stop name, nullable when absent in GTFS.
+      - name: scheduled_departures_count
+        data_type: integer
+        description: Count of scheduled stop departures.
+        tests: [not_null, non_negative]
+
+  - name: network_daily_summary
+    description: Daily network-level static schedule summary at grain service_date.
+    config:
+      contract:
+        enforced: true
+    columns:
+      - name: service_date
+        data_type: varchar
+        description: GTFS service date. Primary analytical key.
+        tests: [not_null, unique]
+      - name: active_routes_count
+        data_type: integer
+        description: Count of distinct active routes from route_daily_trips.
+        tests: [not_null, non_negative]
+      - name: scheduled_trips_count
+        data_type: integer
+        description: Sum of scheduled_trips_count from route_daily_trips.
+        tests: [not_null, non_negative]
+      - name: scheduled_stop_departures_count
+        data_type: integer
+        description: Sum of scheduled_departures_count from stop_daily_departures.
+        tests: [not_null, non_negative]
+      - name: active_stops_count
+        data_type: integer
+        description: Count of distinct active stops from stop_daily_departures.
+        tests: [not_null, non_negative]
+
+  - name: route_period_summary
+    description: Route totals and averages over the GTFS service period at grain route_id.
+    config:
+      contract:
+        enforced: true
+    columns:
+      - name: route_id
+        data_type: varchar
+        description: Route id. Primary analytical key.
+        tests: [not_null, unique]
+      - name: route_short_name
+        data_type: varchar
+        description: Passenger-facing short route label.
+      - name: route_long_name
+        data_type: varchar
+        description: Passenger-facing long route label.
+      - name: route_type
+        data_type: varchar
+        description: GTFS route type code.
+      - name: active_service_days
+        data_type: integer
+        description: Number of service dates where the route is active.
+        tests: [not_null, non_negative]
+      - name: total_scheduled_trips
+        data_type: integer
+        description: Total scheduled trips over the period.
+        tests: [not_null, non_negative]
+      - name: average_trips_per_active_day
+        data_type: double
+        description: Average scheduled trips per active service date.
+      - name: max_daily_trips
+        data_type: integer
+        description: Maximum scheduled trips on one service date.
+        tests: [not_null, non_negative]
+      - name: first_service_date
+        data_type: varchar
+        description: First service date observed for the route.
+      - name: last_service_date
+        data_type: varchar
+        description: Last service date observed for the route.
+
+  - name: route_hourly_headway
+    description: Approximate planned headway at grain service_date + route_id + departure_hour.
+    tests:
+      - unique_combination:
+          arguments:
+            combination_of_columns: [service_date, route_id, departure_hour]
+    columns:
+      - name: service_date
+        data_type: varchar
+        description: GTFS service date.
+        tests: [not_null]
+      - name: route_id
+        data_type: varchar
+        description: Route id.
+        tests: [not_null]
+      - name: route_short_name
+        data_type: varchar
+        description: Passenger-facing short route label.
+      - name: route_long_name
+        data_type: varchar
+        description: Passenger-facing long route label.
+      - name: departure_hour
+        data_type: integer
+        description: GTFS service-day departure hour.
+        tests: [not_null, valid_departure_hour]
+      - name: scheduled_departures_count
+        data_type: integer
+        description: Count of route first-stop departures in the hour.
+        tests: [not_null, non_negative]
+      - name: planned_headway_minutes
+        data_type: double
+        description: Sixty divided by scheduled departures in the route/hour bucket.
+
+  - name: route_type_daily_summary
+    description: Daily scheduled activity at grain service_date + route_type.
+    config:
+      contract:
+        enforced: true
+    tests:
+      - unique_combination:
+          arguments:
+            combination_of_columns: [service_date, route_type]
+    columns:
+      - name: service_date
+        data_type: varchar
+        description: GTFS service date.
+        tests: [not_null]
+      - name: route_type
+        data_type: varchar
+        description: GTFS route type code. Part of the model grain.
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ["0", "1", "2", "3", "4", "5", "6", "7"]
+      - name: route_type_label
+        data_type: varchar
+        description: Human-readable route type label.
+        tests: [not_null]
+      - name: active_routes_count
+        data_type: integer
+        description: Count of distinct active routes in this route type.
+        tests: [not_null, non_negative]
+      - name: scheduled_trips_count
+        data_type: integer
+        description: Scheduled trip count in this route type.
+        tests: [not_null, non_negative]
+      - name: scheduled_stop_departures_count
+        data_type: integer
+        description: Scheduled stop departures from trips in this route type.
+        tests: [not_null, non_negative]
+
+  - name: busiest_route_day
+    description: Top 50 route/date combinations by scheduled trips at grain rank.
+    tests:
+      - unique_combination:
+          arguments:
+            combination_of_columns: [service_date, route_id]
+    columns:
+      - name: service_date
+        data_type: varchar
+        description: GTFS service date.
+        tests: [not_null]
+      - name: route_id
+        data_type: varchar
+        description: Route id.
+        tests: [not_null]
+      - name: route_short_name
+        data_type: varchar
+        description: Passenger-facing short route label.
+      - name: route_long_name
+        data_type: varchar
+        description: Passenger-facing long route label.
+      - name: scheduled_trips_count
+        data_type: integer
+        description: Number of scheduled trips.
+        tests: [not_null, non_negative]
+      - name: rank
+        data_type: integer
+        description: Rank ordered by scheduled trips descending.
+        tests: [not_null, unique]
+
+  - name: busiest_stop_day
+    description: Top 50 stop/date combinations by scheduled departures at grain rank.
+    tests:
+      - unique_combination:
+          arguments:
+            combination_of_columns: [service_date, stop_id]
+    columns:
+      - name: service_date
+        data_type: varchar
+        description: GTFS service date.
+        tests: [not_null]
+      - name: stop_id
+        data_type: varchar
+        description: Stop id.
+        tests: [not_null]
+      - name: stop_name
+        data_type: varchar
+        description: Passenger-facing stop name.
+      - name: scheduled_departures_count
+        data_type: integer
+        description: Number of scheduled departures.
+        tests: [not_null, non_negative]
+      - name: rank
+        data_type: integer
+        description: Rank ordered by scheduled stop departures descending.
+        tests: [not_null, unique]

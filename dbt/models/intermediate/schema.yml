@@ -1,0 +1,49 @@
+version: 2
+
+models:
+  - name: int_service_dates
+    description: Expanded GTFS service dates after applying calendar exceptions.
+    columns:
+      - name: service_id
+        description: GTFS service id.
+        tests: [not_null]
+      - name: service_date
+        description: Active service date in ISO format.
+        tests: [not_null]
+  - name: int_trip_base
+    description: Trip facts enriched with route labels and route type.
+    columns:
+      - name: trip_id
+        description: GTFS trip id.
+        tests: [not_null, unique]
+      - name: route_id
+        description: GTFS route id.
+        tests: [not_null]
+  - name: int_first_trip_departures
+    description: First stop departure per trip used to count route hourly departures. Grain is trip_id.
+    columns:
+      - name: trip_id
+        description: GTFS trip id.
+        tests: [not_null, unique]
+      - name: departure_hour
+        description: Service-day departure hour.
+        tests: [valid_departure_hour]
+  - name: int_route_type_stop_departures
+    description: Route-aware scheduled stop departures. Grain is service_date + route_type + stop_id.
+    tests:
+      - unique_combination:
+          arguments:
+            combination_of_columns: [service_date, route_type, stop_id]
+    columns:
+      - name: service_date
+        description: GTFS service date.
+        tests: [not_null]
+      - name: route_type
+        description: GTFS route type code.
+        tests: [not_null]
+      - name: stop_id
+        description: Stop id.
+        tests: [not_null]
+      - name: scheduled_departures_count
+        description: Scheduled departures for this date/type/stop.
+        tests: [not_null, non_negative]

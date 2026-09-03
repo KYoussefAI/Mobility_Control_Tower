@@ -13,6 +13,7 @@ from mobility_control_tower.quality.gtfs_quality import validate_silver_run
 from mobility_control_tower.metrics.gtfs_kpis import build_gold
 from mobility_control_tower.reporting.charts import generate_static_charts
 from mobility_control_tower.reporting.demo_report import generate_demo_report, generate_static_mvp_report
+from mobility_control_tower.analytics_engineering import generate_dbt_docs, run_dbt, run_quality_validation, test_dbt
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -49,6 +50,23 @@ def build_parser() -> argparse.ArgumentParser:
     mvp = commands.add_parser("generate-static-mvp-report")
     mvp.add_argument("--gold-run", type=Path, required=True)
     mvp.add_argument("--reports-dir", type=Path, default=Path("data/reports"))
+    dbt_run = commands.add_parser("run-dbt")
+    dbt_run.add_argument("--silver-run", type=Path, required=True)
+    dbt_run.add_argument("--project-dir", type=Path, default=Path("dbt"))
+    dbt_run.add_argument("--profiles-dir", type=Path, default=Path("dbt"))
+    dbt_run.add_argument("--output-root", type=Path, default=Path("data/dbt_gold"))
+    dbt_test = commands.add_parser("test-dbt")
+    dbt_test.add_argument("--project-dir", type=Path, default=Path("dbt"))
+    dbt_test.add_argument("--profiles-dir", type=Path, default=Path("dbt"))
+    dbt_docs = commands.add_parser("generate-dbt-docs")
+    dbt_docs.add_argument("--project-dir", type=Path, default=Path("dbt"))
+    dbt_docs.add_argument("--profiles-dir", type=Path, default=Path("dbt"))
+    quality = commands.add_parser("run-quality-validation")
+    quality.add_argument("--suite", choices=["silver", "gold", "all"], default="all")
+    quality.add_argument("--silver-run", type=Path)
+    quality.add_argument("--gold-run", type=Path)
+    quality.add_argument("--ge-root", type=Path, default=Path("quality_contracts"))
+    quality.add_argument("--quality-root", type=Path, default=Path("data/quality"))
     return parser
 
 
@@ -67,6 +85,10 @@ def main() -> int:
         elif args.command == "generate-demo-report": result = generate_demo_report(args.gold_run, args.reports_dir)
         elif args.command == "generate-static-charts": result = generate_static_charts(args.gold_run, args.reports_dir)
         elif args.command == "generate-static-mvp-report": result = generate_static_mvp_report(args.gold_run, args.reports_dir)
+        elif args.command == "run-dbt": result = run_dbt(silver_run=args.silver_run, project_dir=args.project_dir, profiles_dir=args.profiles_dir, output_root=args.output_root)
+        elif args.command == "test-dbt": result = test_dbt(args.project_dir, args.profiles_dir)
+        elif args.command == "generate-dbt-docs": result = generate_dbt_docs(args.project_dir, args.profiles_dir)
+        elif args.command == "run-quality-validation": result = run_quality_validation(suite_name=args.suite, silver_run=args.silver_run, gold_run=args.gold_run, ge_root=args.ge_root, quality_root=args.quality_root)
         if result is not None:
             print(result)
         return 0

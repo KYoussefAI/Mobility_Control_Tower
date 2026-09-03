@@ -32,3 +32,8 @@ quality_contracts/data_docs/local_site/*
 
 data/gold/*
 !data/gold/.gitkeep
+
+data/dbt_gold/*
+dbt/target/*
+dbt/logs/*
+dbt/.user.yml
