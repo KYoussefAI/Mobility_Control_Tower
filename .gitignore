@@ -37,3 +37,8 @@ data/dbt_gold/*
 dbt/target/*
 dbt/logs/*
 dbt/.user.yml
+
+data/serving/*
+!data/serving/.gitkeep
+*.duckdb
+*.duckdb.wal

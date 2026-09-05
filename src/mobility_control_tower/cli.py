@@ -14,6 +14,8 @@ from mobility_control_tower.metrics.gtfs_kpis import build_gold
 from mobility_control_tower.reporting.charts import generate_static_charts
 from mobility_control_tower.reporting.demo_report import generate_demo_report, generate_static_mvp_report
 from mobility_control_tower.analytics_engineering import generate_dbt_docs, run_dbt, run_quality_validation, test_dbt
+from mobility_control_tower.serving.duckdb_loader import build_serving_database, dataframe_to_text_table, query_serving_database
+from mobility_control_tower.serving.serving_report import generate_serving_report
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -67,6 +69,17 @@ def build_parser() -> argparse.ArgumentParser:
     quality.add_argument("--gold-run", type=Path)
     quality.add_argument("--ge-root", type=Path, default=Path("quality_contracts"))
     quality.add_argument("--quality-root", type=Path, default=Path("data/quality"))
+    serving = commands.add_parser("build-serving-db")
+    serving.add_argument("--gold-run", type=Path, required=True)
+    serving.add_argument("--serving-root", type=Path, default=Path("data/serving"))
+    serving.add_argument("--quality-status", default="unknown")
+    query = commands.add_parser("query-serving-db")
+    query.add_argument("--db-path", type=Path, required=True)
+    query.add_argument("--query", required=True)
+    query.add_argument("--limit", type=int, default=10)
+    serving_report = commands.add_parser("generate-serving-report")
+    serving_report.add_argument("--serving-run", type=Path, required=True)
+    serving_report.add_argument("--reports-dir", type=Path, default=Path("data/reports"))
     return parser
 
 
@@ -89,6 +102,9 @@ def main() -> int:
         elif args.command == "test-dbt": result = test_dbt(args.project_dir, args.profiles_dir)
         elif args.command == "generate-dbt-docs": result = generate_dbt_docs(args.project_dir, args.profiles_dir)
         elif args.command == "run-quality-validation": result = run_quality_validation(suite_name=args.suite, silver_run=args.silver_run, gold_run=args.gold_run, ge_root=args.ge_root, quality_root=args.quality_root)
+        elif args.command == "build-serving-db": result = build_serving_database(args.gold_run, serving_root=args.serving_root, quality_status=args.quality_status)
+        elif args.command == "query-serving-db": result = dataframe_to_text_table(query_serving_database(args.db_path, args.query, args.limit))
+        elif args.command == "generate-serving-report": result = generate_serving_report(args.serving_run, args.reports_dir)
         if result is not None:
             print(result)
         return 0

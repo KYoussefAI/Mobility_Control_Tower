@@ -2,28 +2,25 @@
 
 ## Overview
 
-The analytical boundary is explicit: Python owns GTFS ingestion and Raw, Bronze, and Silver; dbt owns analytical transformations from Silver to Gold. The dbt project provides staging, intermediate models, tested marts, reconciliation tests, and unit tests for schedule-based indicators.
+Mobility Control Tower publishes dbt-produced Gold marts as a local DuckDB serving artifact. Publication builds and validates a replacement separately, then updates the current pointer so readers do not observe a partially constructed analytical store.
 
 ## Architecture
 
-```mermaid
-flowchart LR
-    G[GTFS] --> P[Python: Raw / Bronze / Silver]
-    P --> Q[Silver quality]
-    Q --> D[dbt staging and intermediate]
-    D --> M[dbt Gold marts]
+```text
+GTFS -> Python Raw/Bronze/Silver -> dbt Gold -> quality gate -> DuckDB serving artifact
 ```
 
-## Running and Verification
+DuckDB is a serving boundary, not the owner of transformations. dbt remains authoritative for Gold logic; serving exposes stable views over accepted outputs. See [`docs/adr/0001-duckdb-serving.md`](docs/adr/0001-duckdb-serving.md).
+
+## Running the Project
 
 ```bash
 python -m pip install -e '.[quality,analytics]'
-mobility-control-tower run-dbt
-mobility-control-tower test-dbt
+mobility-control-tower build-serving-db
 ```
 
-The commands require a valid Silver run; use CLI help for arguments. dbt configuration and models live under `dbt/`.
+Supply the Gold run and destination arguments shown by CLI help. Quality behavior is documented in [`docs/data_quality.md`](docs/data_quality.md).
 
 ## Limitations
 
-Gold marts are local build artifacts. No serving database, API, dashboard, realtime feed, or orchestrator exists. dbt success is not substituted by a Python Gold fallback.
+Serving is embedded and local. There is no network API, dashboard, realtime processing, or scheduler.
