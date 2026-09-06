@@ -16,6 +16,9 @@ from mobility_control_tower.reporting.demo_report import generate_demo_report, g
 from mobility_control_tower.analytics_engineering import generate_dbt_docs, run_dbt, run_quality_validation, test_dbt
 from mobility_control_tower.serving.duckdb_loader import build_serving_database, dataframe_to_text_table, query_serving_database
 from mobility_control_tower.serving.serving_report import generate_serving_report
+import uvicorn
+from mobility_control_tower.api.app import create_app
+from mobility_control_tower.api.report import generate_api_report
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -80,6 +83,13 @@ def build_parser() -> argparse.ArgumentParser:
     serving_report = commands.add_parser("generate-serving-report")
     serving_report.add_argument("--serving-run", type=Path, required=True)
     serving_report.add_argument("--reports-dir", type=Path, default=Path("data/reports"))
+    api = commands.add_parser("serve-api")
+    api.add_argument("--db-path", type=Path, required=True)
+    api.add_argument("--host", default="127.0.0.1")
+    api.add_argument("--port", type=int, default=8000)
+    api_report = commands.add_parser("generate-api-report")
+    api_report.add_argument("--db-path", type=Path, required=True)
+    api_report.add_argument("--reports-dir", type=Path, default=Path("data/reports"))
     return parser
 
 
@@ -105,6 +115,9 @@ def main() -> int:
         elif args.command == "build-serving-db": result = build_serving_database(args.gold_run, serving_root=args.serving_root, quality_status=args.quality_status)
         elif args.command == "query-serving-db": result = dataframe_to_text_table(query_serving_database(args.db_path, args.query, args.limit))
         elif args.command == "generate-serving-report": result = generate_serving_report(args.serving_run, args.reports_dir)
+        elif args.command == "serve-api":
+            uvicorn.run(create_app(args.db_path), host=args.host, port=args.port); return 0
+        elif args.command == "generate-api-report": result = generate_api_report(args.db_path, args.reports_dir)
         if result is not None:
             print(result)
         return 0

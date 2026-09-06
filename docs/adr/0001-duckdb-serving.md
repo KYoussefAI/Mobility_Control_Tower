@@ -2,8 +2,6 @@
 
 Decision: keep DuckDB as the local analytical serving artifact.
 
-Reasoning: the project is local-first. dbt remains the owner of Gold
-transformations, while DuckDB publishes a bounded, atomic analytical artifact.
+Reasoning: the project is local-first and favors deterministic embedded analytical serving. A server warehouse would add operational complexity without improving reproducibility or reviewability. dbt remains the owner of Gold transformations; DuckDB serves the atomic published artifact.
 
-Consequence: serving publication validates required static views before exposing
-the new database.
+Consequence: the API must never expose arbitrary SQL, and serving publication must remain atomic through `current.json`.

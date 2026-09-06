@@ -2,25 +2,26 @@
 
 ## Overview
 
-Mobility Control Tower publishes dbt-produced Gold marts as a local DuckDB serving artifact. Publication builds and validates a replacement separately, then updates the current pointer so readers do not observe a partially constructed analytical store.
+FastAPI provides a read interface over the published DuckDB serving artifact. Health, metadata, and schedule-analytics endpoints separate consumers from database paths while preserving dbt as the owner of Gold transformations.
 
 ## Architecture
 
 ```text
-GTFS -> Python Raw/Bronze/Silver -> dbt Gold -> quality gate -> DuckDB serving artifact
+GTFS -> Raw/Bronze/Silver -> dbt Gold -> DuckDB publication -> FastAPI
 ```
 
-DuckDB is a serving boundary, not the owner of transformations. dbt remains authoritative for Gold logic; serving exposes stable views over accepted outputs. See [`docs/adr/0001-duckdb-serving.md`](docs/adr/0001-duckdb-serving.md).
+The API opens the current validated serving database and applies bounded query patterns. It does not rebuild analytical logic or mutate source data.
 
 ## Running the Project
 
 ```bash
 python -m pip install -e '.[quality,analytics]'
 mobility-control-tower build-serving-db
+mobility-control-tower serve-api
 ```
 
-Supply the Gold run and destination arguments shown by CLI help. Quality behavior is documented in [`docs/data_quality.md`](docs/data_quality.md).
+Use CLI help for serving paths and host/port options. The DuckDB choice is documented in [`docs/adr/0001-duckdb-serving.md`](docs/adr/0001-duckdb-serving.md).
 
 ## Limitations
 
-Serving is embedded and local. There is no network API, dashboard, realtime processing, or scheduler.
+The API exposes static scheduled-service analytics only. There is no dashboard, authentication, realtime ingestion, incident state, or orchestration.
