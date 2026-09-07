@@ -19,6 +19,8 @@ from mobility_control_tower.serving.serving_report import generate_serving_repor
 import uvicorn
 from mobility_control_tower.api.app import create_app
 from mobility_control_tower.api.report import generate_api_report
+import subprocess
+import sys
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -90,6 +92,8 @@ def build_parser() -> argparse.ArgumentParser:
     api_report = commands.add_parser("generate-api-report")
     api_report.add_argument("--db-path", type=Path, required=True)
     api_report.add_argument("--reports-dir", type=Path, default=Path("data/reports"))
+    dashboard = commands.add_parser("serve-dashboard")
+    dashboard.add_argument("--port", type=int, default=8501)
     return parser
 
 
@@ -118,6 +122,8 @@ def main() -> int:
         elif args.command == "serve-api":
             uvicorn.run(create_app(args.db_path), host=args.host, port=args.port); return 0
         elif args.command == "generate-api-report": result = generate_api_report(args.db_path, args.reports_dir)
+        elif args.command == "serve-dashboard":
+            subprocess.run([sys.executable, "-m", "streamlit", "run", "src/mobility_control_tower/dashboard/app.py", "--server.port", str(args.port)], check=True); return 0
         if result is not None:
             print(result)
         return 0

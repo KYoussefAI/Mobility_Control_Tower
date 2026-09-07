@@ -2,26 +2,26 @@
 
 ## Overview
 
-FastAPI provides a read interface over the published DuckDB serving artifact. Health, metadata, and schedule-analytics endpoints separate consumers from database paths while preserving dbt as the owner of Gold transformations.
+Mobility Control Tower includes a Streamlit dashboard that consumes the FastAPI service. The application presents static schedule analytics published through DuckDB; it does not read transformation outputs directly.
 
 ## Architecture
 
 ```text
-GTFS -> Raw/Bronze/Silver -> dbt Gold -> DuckDB publication -> FastAPI
+GTFS -> Python layers -> dbt Gold -> DuckDB -> FastAPI -> Streamlit
 ```
 
-The API opens the current validated serving database and applies bounded query patterns. It does not rebuild analytical logic or mutate source data.
+This consumer boundary keeps analytical ownership in dbt and query access in the API while allowing the user interface to remain a replaceable client.
 
 ## Running the Project
 
 ```bash
 python -m pip install -e '.[quality,analytics]'
-mobility-control-tower build-serving-db
 mobility-control-tower serve-api
+mobility-control-tower serve-dashboard
 ```
 
-Use CLI help for serving paths and host/port options. The DuckDB choice is documented in [`docs/adr/0001-duckdb-serving.md`](docs/adr/0001-duckdb-serving.md).
+Build and publish a serving database first, start the API, then configure the dashboard with its base URL. Use CLI help for exact options.
 
 ## Limitations
 
-The API exposes static scheduled-service analytics only. There is no dashboard, authentication, realtime ingestion, incident state, or orchestration.
+The dashboard represents planned static service, not live operations. Components run as local processes and there is no scheduler, authentication, or operational state store.
