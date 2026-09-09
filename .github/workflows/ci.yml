@@ -1,0 +1,29 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+          cache: pip
+      - name: Install Python, quality, and analytics dependencies
+        run: python -m pip install -e '.[dev,quality,analytics]'
+      - name: Python quality and tests
+        run: |
+          ruff check .
+          black --check .
+          isort --check-only .
+          mypy src
+          coverage run -m pytest
+          coverage report --fail-under=80
+      - name: Parse dbt project
+        run: |
+          dbt deps --project-dir dbt --profiles-dir dbt
+          dbt parse --project-dir dbt --profiles-dir dbt --no-partial-parse

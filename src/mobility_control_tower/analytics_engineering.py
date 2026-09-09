@@ -13,8 +13,15 @@ import duckdb
 import pandas as pd
 
 STATIC_MODELS = (
-    "route_daily_trips", "route_hourly_departures", "stop_daily_departures", "network_daily_summary",
-    "route_period_summary", "route_hourly_headway", "route_type_daily_summary", "busiest_route_day", "busiest_stop_day",
+    "route_daily_trips",
+    "route_hourly_departures",
+    "stop_daily_departures",
+    "network_daily_summary",
+    "route_period_summary",
+    "route_hourly_headway",
+    "route_type_daily_summary",
+    "busiest_route_day",
+    "busiest_stop_day",
 )
 
 
@@ -56,7 +63,10 @@ def run_dbt(
             if model in available:
                 connection.execute(f"COPY (SELECT * FROM {model}) TO ? (HEADER, DELIMITER ',')", [str(output_dir / f"{model}.csv")])
     (output_dir / "dbt_run_manifest.json").write_text(
-        json.dumps({"status": "success", "tool": "dbt Core", "silver_run": str(silver_run), "database_path": str(database_path), "stdout": result.stdout}, indent=2) + "\n",
+        json.dumps(
+            {"status": "success", "tool": "dbt Core", "silver_run": str(silver_run), "database_path": str(database_path), "stdout": result.stdout}, indent=2
+        )
+        + "\n",
         encoding="utf-8",
     )
     return output_dir
@@ -117,7 +127,10 @@ def run_quality_validation(
     failed = sum(not item["success"] for item in results)
     quality_root.mkdir(parents=True, exist_ok=True)
     output = quality_root / "latest_validation_summary.json"
-    output.write_text(json.dumps({"success": failed == 0, "expectations_evaluated": len(results), "expectations_failed": failed, "results": results}, indent=2) + "\n", encoding="utf-8")
+    output.write_text(
+        json.dumps({"success": failed == 0, "expectations_evaluated": len(results), "expectations_failed": failed, "results": results}, indent=2) + "\n",
+        encoding="utf-8",
+    )
     if failed:
         raise ValueError(f"Quality validation failed: {failed} expectations failed. Results: {output}")
     return output

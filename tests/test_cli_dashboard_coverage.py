@@ -8,9 +8,7 @@ def test_dashboard_client_requests_static_views(monkeypatch) -> None:
         requested.append(endpoint)
         return {"base_url": base_url, "params": params, "token": token}
 
-    monkeypatch.setattr(
-        "mobility_control_tower.dashboard.api_client.get_json", fake_get_json
-    )
+    monkeypatch.setattr("mobility_control_tower.dashboard.api_client.get_json", fake_get_json)
 
     result = fetch_dashboard_data("http://api.test")
 
