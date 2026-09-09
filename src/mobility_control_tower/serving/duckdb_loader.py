@@ -14,14 +14,25 @@ import pandas as pd
 
 from mobility_control_tower.serving.sql_views import QUERY_SQL, create_views
 
-TABLES = ['route_daily_trips', 'route_hourly_departures', 'stop_daily_departures', 'network_daily_summary', 'route_period_summary', 'route_hourly_headway', 'route_type_daily_summary', 'busiest_route_day', 'busiest_stop_day']
+TABLES = [
+    "route_daily_trips",
+    "route_hourly_departures",
+    "stop_daily_departures",
+    "network_daily_summary",
+    "route_period_summary",
+    "route_hourly_headway",
+    "route_type_daily_summary",
+    "busiest_route_day",
+    "busiest_stop_day",
+]
 ESSENTIAL_TABLES = ("route_daily_trips", "network_daily_summary", "route_period_summary")
 SERVING_CONTRACT_VERSION = 1
 
 
 def _load(connection: duckdb.DuckDBPyConnection, table: str, path: Path) -> dict[str, Any]:
     connection.execute(f"CREATE OR REPLACE TABLE {table} AS SELECT * FROM read_csv_auto(?, header=true)", [str(path)])
-    count = connection.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
+    row = connection.execute(f"SELECT COUNT(*) FROM {table}").fetchone()
+    count = row[0] if row else 0
     return {"file": str(path), "row_count": int(count)}
 
 
@@ -92,17 +103,45 @@ def build_serving_database(
     loaded: dict[str, dict[str, Any]] = {}
     try:
         with duckdb.connect(str(db_path)) as connection:
-            for table in ['route_daily_trips', 'route_hourly_departures', 'stop_daily_departures', 'network_daily_summary', 'route_period_summary', 'route_hourly_headway', 'route_type_daily_summary', 'busiest_route_day', 'busiest_stop_day']:
+            for table in [
+                "route_daily_trips",
+                "route_hourly_departures",
+                "stop_daily_departures",
+                "network_daily_summary",
+                "route_period_summary",
+                "route_hourly_headway",
+                "route_type_daily_summary",
+                "busiest_route_day",
+                "busiest_stop_day",
+            ]:
                 path = gold_run / f"{table}.csv"
                 if path.is_file():
                     loaded[table] = _load(connection, table, path)
             views = create_views(connection, set(loaded))
         validation = validate_serving_database(db_path)
         final_db_path = output / "mobility_control_tower.duckdb"
-        manifest = {"schema_version": SERVING_CONTRACT_VERSION, "source": source_id, "source_gold_run": str(gold_run), "database_path": str(final_db_path), "quality_status": normalized_quality, "tables_loaded": loaded, "views_created": views, "validation": validation}
+        manifest = {
+            "schema_version": SERVING_CONTRACT_VERSION,
+            "source": source_id,
+            "source_gold_run": str(gold_run),
+            "database_path": str(final_db_path),
+            "quality_status": normalized_quality,
+            "tables_loaded": loaded,
+            "views_created": views,
+            "validation": validation,
+        }
         _atomic_json(temporary / "serving_manifest.json", manifest)
         temporary.rename(output)
-        _atomic_json(current_pointer_path(source_id, serving_root), {"schema_version": SERVING_CONTRACT_VERSION, "source": source_id, "serving_run_id": run_id, "database_path": f"runs/{run_id}/mobility_control_tower.duckdb", "quality_status": normalized_quality})
+        _atomic_json(
+            current_pointer_path(source_id, serving_root),
+            {
+                "schema_version": SERVING_CONTRACT_VERSION,
+                "source": source_id,
+                "serving_run_id": run_id,
+                "database_path": f"runs/{run_id}/mobility_control_tower.duckdb",
+                "quality_status": normalized_quality,
+            },
+        )
     except Exception:
         shutil.rmtree(temporary, ignore_errors=True)
         raise

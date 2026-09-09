@@ -3,24 +3,26 @@
 from __future__ import annotations
 
 import argparse
-from pathlib import Path
-from mobility_control_tower.config import load_source
-from mobility_control_tower.ingestion.gtfs_raw import download_and_preserve_gtfs, preserve_gtfs_zip
-from mobility_control_tower.profiling.gtfs_profile import profile_raw_run
-from mobility_control_tower.transformations.gtfs_bronze import build_bronze
-from mobility_control_tower.transformations.gtfs_silver import build_silver
-from mobility_control_tower.quality.gtfs_quality import validate_silver_run
-from mobility_control_tower.metrics.gtfs_kpis import build_gold
-from mobility_control_tower.reporting.charts import generate_static_charts
-from mobility_control_tower.reporting.demo_report import generate_demo_report, generate_static_mvp_report
-from mobility_control_tower.analytics_engineering import generate_dbt_docs, run_dbt, run_quality_validation, test_dbt
-from mobility_control_tower.serving.duckdb_loader import build_serving_database, dataframe_to_text_table, query_serving_database
-from mobility_control_tower.serving.serving_report import generate_serving_report
-import uvicorn
-from mobility_control_tower.api.app import create_app
-from mobility_control_tower.api.report import generate_api_report
 import subprocess
 import sys
+from pathlib import Path
+
+import uvicorn
+
+from mobility_control_tower.analytics_engineering import generate_dbt_docs, run_dbt, run_quality_validation, test_dbt
+from mobility_control_tower.api.app import create_app
+from mobility_control_tower.api.report import generate_api_report
+from mobility_control_tower.config import load_source
+from mobility_control_tower.ingestion.gtfs_raw import download_and_preserve_gtfs, preserve_gtfs_zip
+from mobility_control_tower.metrics.gtfs_kpis import build_gold
+from mobility_control_tower.profiling.gtfs_profile import profile_raw_run
+from mobility_control_tower.quality.gtfs_quality import validate_silver_run
+from mobility_control_tower.reporting.charts import generate_static_charts
+from mobility_control_tower.reporting.demo_report import generate_demo_report, generate_static_mvp_report
+from mobility_control_tower.serving.duckdb_loader import build_serving_database, dataframe_to_text_table, query_serving_database
+from mobility_control_tower.serving.serving_report import generate_serving_report
+from mobility_control_tower.transformations.gtfs_bronze import build_bronze
+from mobility_control_tower.transformations.gtfs_silver import build_silver
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -100,30 +102,56 @@ def build_parser() -> argparse.ArgumentParser:
 def main() -> int:
     args = build_parser().parse_args()
     try:
-        result = None
+        result: object | None = None
         if args.command == "ingest-gtfs":
             source = load_source(args.source, args.config)
-            result = preserve_gtfs_zip(args.local_zip, args.source, source, args.raw_root) if args.local_zip else download_and_preserve_gtfs(args.source, source, args.raw_root)
-        elif args.command == "profile-gtfs": result = profile_raw_run(args.raw_run, args.reports_dir)
-        elif args.command == "build-bronze": result = build_bronze(args.raw_run, args.bronze_root)
-        elif args.command == "build-silver": result = build_silver(args.bronze_run, args.silver_root)
-        elif args.command == "validate-gtfs": result = validate_silver_run(args.silver_run, args.reports_dir)
-        elif args.command == "build-gold": result = build_gold(args.silver_run, args.gold_root)
-        elif args.command == "generate-demo-report": result = generate_demo_report(args.gold_run, args.reports_dir)
-        elif args.command == "generate-static-charts": result = generate_static_charts(args.gold_run, args.reports_dir)
-        elif args.command == "generate-static-mvp-report": result = generate_static_mvp_report(args.gold_run, args.reports_dir)
-        elif args.command == "run-dbt": result = run_dbt(silver_run=args.silver_run, project_dir=args.project_dir, profiles_dir=args.profiles_dir, output_root=args.output_root)
-        elif args.command == "test-dbt": result = test_dbt(args.project_dir, args.profiles_dir)
-        elif args.command == "generate-dbt-docs": result = generate_dbt_docs(args.project_dir, args.profiles_dir)
-        elif args.command == "run-quality-validation": result = run_quality_validation(suite_name=args.suite, silver_run=args.silver_run, gold_run=args.gold_run, ge_root=args.ge_root, quality_root=args.quality_root)
-        elif args.command == "build-serving-db": result = build_serving_database(args.gold_run, serving_root=args.serving_root, quality_status=args.quality_status)
-        elif args.command == "query-serving-db": result = dataframe_to_text_table(query_serving_database(args.db_path, args.query, args.limit))
-        elif args.command == "generate-serving-report": result = generate_serving_report(args.serving_run, args.reports_dir)
+            result = (
+                preserve_gtfs_zip(args.local_zip, args.source, source, args.raw_root)
+                if args.local_zip
+                else download_and_preserve_gtfs(args.source, source, args.raw_root)
+            )
+        elif args.command == "profile-gtfs":
+            result = profile_raw_run(args.raw_run, args.reports_dir)
+        elif args.command == "build-bronze":
+            result = build_bronze(args.raw_run, args.bronze_root)
+        elif args.command == "build-silver":
+            result = build_silver(args.bronze_run, args.silver_root)
+        elif args.command == "validate-gtfs":
+            result = validate_silver_run(args.silver_run, args.reports_dir)
+        elif args.command == "build-gold":
+            result = build_gold(args.silver_run, args.gold_root)
+        elif args.command == "generate-demo-report":
+            result = generate_demo_report(args.gold_run, args.reports_dir)
+        elif args.command == "generate-static-charts":
+            result = generate_static_charts(args.gold_run, args.reports_dir)
+        elif args.command == "generate-static-mvp-report":
+            result = generate_static_mvp_report(args.gold_run, args.reports_dir)
+        elif args.command == "run-dbt":
+            result = run_dbt(silver_run=args.silver_run, project_dir=args.project_dir, profiles_dir=args.profiles_dir, output_root=args.output_root)
+        elif args.command == "test-dbt":
+            result = test_dbt(args.project_dir, args.profiles_dir)
+        elif args.command == "generate-dbt-docs":
+            result = generate_dbt_docs(args.project_dir, args.profiles_dir)
+        elif args.command == "run-quality-validation":
+            result = run_quality_validation(
+                suite_name=args.suite, silver_run=args.silver_run, gold_run=args.gold_run, ge_root=args.ge_root, quality_root=args.quality_root
+            )
+        elif args.command == "build-serving-db":
+            result = build_serving_database(args.gold_run, serving_root=args.serving_root, quality_status=args.quality_status)
+        elif args.command == "query-serving-db":
+            result = dataframe_to_text_table(query_serving_database(args.db_path, args.query, args.limit))
+        elif args.command == "generate-serving-report":
+            result = generate_serving_report(args.serving_run, args.reports_dir)
         elif args.command == "serve-api":
-            uvicorn.run(create_app(args.db_path), host=args.host, port=args.port); return 0
-        elif args.command == "generate-api-report": result = generate_api_report(args.db_path, args.reports_dir)
+            uvicorn.run(create_app(args.db_path), host=args.host, port=args.port)
+            return 0
+        elif args.command == "generate-api-report":
+            result = generate_api_report(args.db_path, args.reports_dir)
         elif args.command == "serve-dashboard":
-            subprocess.run([sys.executable, "-m", "streamlit", "run", "src/mobility_control_tower/dashboard/app.py", "--server.port", str(args.port)], check=True); return 0
+            subprocess.run(
+                [sys.executable, "-m", "streamlit", "run", "src/mobility_control_tower/dashboard/app.py", "--server.port", str(args.port)], check=True
+            )
+            return 0
         if result is not None:
             print(result)
         return 0

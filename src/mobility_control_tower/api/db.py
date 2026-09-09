@@ -48,4 +48,4 @@ def query_view(db_path: Path, view_name: str, limit: int, filters: dict[str, Any
     with _connect(db_path) as connection:
         cursor = connection.execute(f"SELECT * FROM {view_name}{where} LIMIT ?", params)
         columns = [column[0] for column in cursor.description]
-        return [dict(zip(columns, row)) for row in cursor.fetchall()]
+        return [dict(zip(columns, row, strict=False)) for row in cursor.fetchall()]

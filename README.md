@@ -25,3 +25,8 @@ Build and publish a serving database first, start the API, then configure the da
 ## Limitations
 
 The dashboard represents planned static service, not live operations. Components run as local processes and there is no scheduler, authentication, or operational state store.
+
+## Development And Releases
+
+New work uses focused feature branches and pull requests. See `CONTRIBUTING.md`,
+`CHANGELOG.md`, and `docs/release_process.md`.
