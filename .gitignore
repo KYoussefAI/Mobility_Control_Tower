@@ -42,3 +42,7 @@ data/serving/*
 !data/serving/.gitkeep
 *.duckdb
 *.duckdb.wal
+
+data/raw_realtime/*
+!data/raw_realtime/.gitkeep
+*.pb

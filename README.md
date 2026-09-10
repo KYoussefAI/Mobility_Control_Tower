@@ -8,6 +8,7 @@ Mobility Control Tower includes a Streamlit dashboard that consumes the FastAPI 
 
 ```text
 GTFS -> Python layers -> dbt Gold -> DuckDB -> FastAPI -> Streamlit
+GTFS-Realtime endpoint -> immutable checksummed Raw snapshot
 ```
 
 This consumer boundary keeps analytical ownership in dbt and query access in the API while allowing the user interface to remain a replaceable client.
@@ -24,9 +25,19 @@ Build and publish a serving database first, start the API, then configure the da
 
 ## Limitations
 
-The dashboard represents planned static service, not live operations. Components run as local processes and there is no scheduler, authentication, or operational state store.
+The dashboard still represents planned static service. The realtime layer in
+this release preserves acquisition evidence only; it does not yet parse payloads
+or produce operational metrics. Components run as local processes and there is
+no scheduler, authentication, or operational state store.
 
 ## Development And Releases
 
 New work uses focused feature branches and pull requests. See `CONTRIBUTING.md`,
 `CHANGELOG.md`, and `docs/release_process.md`.
+
+## Realtime Acquisition
+
+`mobility_control_tower.realtime.gtfs_rt_raw.fetch_realtime_snapshot` fetches
+one configured Trip Updates, Vehicle Positions, or Service Alerts payload and
+stores `feed.pb` beside acquisition time, HTTP metadata, size, source provenance,
+and SHA-256. Raw run directories are never overwritten.
