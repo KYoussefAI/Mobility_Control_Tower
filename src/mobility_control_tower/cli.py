@@ -17,6 +17,7 @@ from mobility_control_tower.ingestion.gtfs_raw import download_and_preserve_gtfs
 from mobility_control_tower.metrics.gtfs_kpis import build_gold
 from mobility_control_tower.profiling.gtfs_profile import profile_raw_run
 from mobility_control_tower.quality.gtfs_quality import validate_silver_run
+from mobility_control_tower.realtime.gtfs_rt_raw import FEED_TYPES, fetch_realtime_snapshot
 from mobility_control_tower.reporting.charts import generate_static_charts
 from mobility_control_tower.reporting.demo_report import generate_demo_report, generate_static_mvp_report
 from mobility_control_tower.serving.duckdb_loader import build_serving_database, dataframe_to_text_table, query_serving_database
@@ -96,6 +97,12 @@ def build_parser() -> argparse.ArgumentParser:
     api_report.add_argument("--reports-dir", type=Path, default=Path("data/reports"))
     dashboard = commands.add_parser("serve-dashboard")
     dashboard.add_argument("--port", type=int, default=8501)
+    fetch_rt = commands.add_parser("fetch-gtfs-rt")
+    fetch_rt.add_argument("--source", required=True)
+    fetch_rt.add_argument("--feed-type", choices=sorted(FEED_TYPES), required=True)
+    fetch_rt.add_argument("--url")
+    fetch_rt.add_argument("--config", type=Path, default=Path("config/sources.yml"))
+    fetch_rt.add_argument("--raw-root", type=Path, default=Path("data/raw_realtime"))
     return parser
 
 
@@ -152,6 +159,9 @@ def main() -> int:
                 [sys.executable, "-m", "streamlit", "run", "src/mobility_control_tower/dashboard/app.py", "--server.port", str(args.port)], check=True
             )
             return 0
+        elif args.command == "fetch-gtfs-rt":
+            source = load_source(args.source, args.config)
+            result = fetch_realtime_snapshot(args.source, source, args.feed_type, args.url, args.raw_root)
         if result is not None:
             print(result)
         return 0

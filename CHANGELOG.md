@@ -6,6 +6,7 @@ This changelog records delivered changes using semantic versioning.
 
 - Establish feature-branch review, contribution guidance, and basic Python/dbt CI.
 - Add checksummed immutable GTFS-Realtime acquisition with provenance.
+- Expose realtime acquisition and inspection through the CLI.
 
 ## [0.1.0]
 
