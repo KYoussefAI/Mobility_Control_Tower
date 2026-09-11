@@ -2,8 +2,28 @@
 sources:
   tisseo:
     name: "Tisséo — Réseau transport urbain toulousain"
+    city: "Toulouse"
+    country: "FR"
+    timezone: "Europe/Paris"
+    language: "fr"
     source_page_url: "https://transport.data.gouv.fr/datasets/tisseo-reseau-transport-urbain-toulousain"
     data_gouv_url: "https://www.data.gouv.fr/datasets/tisseo-reseau-transport-urbain-toulousain"
-    download_url: "https://data.toulouse-metropole.fr/explore/dataset/tisseo-gtfs/files/fc1dda89077cf37e4f7521760e0ef4e9/download/"
+    static_gtfs:
+      enabled: true
+      url: "https://data.toulouse-metropole.fr/explore/dataset/tisseo-gtfs/files/fc1dda89077cf37e4f7521760e0ef4e9/download/"
     licence: "ODbL"
     output_filename: "Tisseo_GTFS.zip"
+    realtime:
+      trip_updates:
+        enabled: true
+        url: "https://api.tisseo.fr/opendata/gtfsrt/GtfsRt.pb"
+      vehicle_positions:
+        enabled: false
+        url: null
+      service_alerts:
+        enabled: true
+        url: "https://api.tisseo.fr/opendata/gtfsrt/Alert.pb"
+    expected_freshness:
+      trip_updates_seconds: 90
+      vehicle_positions_seconds: 90
+      service_alerts_seconds: 600

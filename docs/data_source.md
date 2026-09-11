@@ -1,13 +1,8 @@
-# Tisséo static GTFS source
+# Tisséo GTFS sources
 
-The initial source is the Tisséo Toulouse static GTFS dataset. It contains the
-published stops, routes, trips, stop times, calendars, and related schedule files
-used by the local pipeline.
+The project uses the Tisséo Toulouse static GTFS schedule and the configured
+GTFS-Realtime feeds for Trip Updates and Service Alerts. Vehicle Positions are
+recorded as unavailable in the source capability configuration.
 
-Official pages:
-
-- [French National Access Point for transport data](https://transport.data.gouv.fr/datasets/tisseo-reseau-transport-urbain-toulousain)
-- [data.gouv.fr dataset page](https://www.data.gouv.fr/datasets/tisseo-reseau-transport-urbain-toulousain)
-
-The source is published under ODbL. The pipeline records that licence and the
-source-page URL in immutable ingestion metadata.
+Static archives and realtime protobuf snapshots are preserved unchanged with
+source, timestamp, checksum, and HTTP provenance metadata before parsing.
