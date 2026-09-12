@@ -10,14 +10,3 @@ directory collision fails without representing the fetch as successful.
 
 This layer does not parse the protobuf or calculate service indicators. Saving a
 snapshot proves only what bytes were acquired at that time.
-
-## CLI
-
-```bash
-mobility-control-tower fetch-gtfs-rt \
-  --source tisseo \
-  --feed-type trip_updates
-```
-
-The command prints the newly created raw run directory. Inspect `metadata.json`
-to verify provenance and checksum; keep `feed.pb` as immutable source evidence.

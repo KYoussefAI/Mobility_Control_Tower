@@ -17,7 +17,10 @@ from mobility_control_tower.ingestion.gtfs_raw import download_and_preserve_gtfs
 from mobility_control_tower.metrics.gtfs_kpis import build_gold
 from mobility_control_tower.profiling.gtfs_profile import profile_raw_run
 from mobility_control_tower.quality.gtfs_quality import validate_silver_run
+from mobility_control_tower.realtime.gtfs_rt_compatibility import check_realtime_compatibility
+from mobility_control_tower.realtime.gtfs_rt_parser import parse_realtime_snapshot
 from mobility_control_tower.realtime.gtfs_rt_raw import FEED_TYPES, fetch_realtime_snapshot
+from mobility_control_tower.realtime.gtfs_rt_report import generate_realtime_report
 from mobility_control_tower.reporting.charts import generate_static_charts
 from mobility_control_tower.reporting.demo_report import generate_demo_report, generate_static_mvp_report
 from mobility_control_tower.serving.duckdb_loader import build_serving_database, dataframe_to_text_table, query_serving_database
@@ -103,6 +106,15 @@ def build_parser() -> argparse.ArgumentParser:
     fetch_rt.add_argument("--url")
     fetch_rt.add_argument("--config", type=Path, default=Path("config/sources.yml"))
     fetch_rt.add_argument("--raw-root", type=Path, default=Path("data/raw_realtime"))
+    parse_rt = commands.add_parser("parse-gtfs-rt")
+    parse_rt.add_argument("--raw-run", type=Path, required=True)
+    parse_rt.add_argument("--output-root", type=Path, default=Path("data/realtime"))
+    compat = commands.add_parser("check-rt-compatibility")
+    compat.add_argument("--realtime-run", type=Path, required=True)
+    compat.add_argument("--silver-run", type=Path, required=True)
+    rt_report = commands.add_parser("report-gtfs-rt")
+    rt_report.add_argument("--realtime-run", type=Path, required=True)
+    rt_report.add_argument("--reports-dir", type=Path, default=Path("data/reports"))
     return parser
 
 
@@ -162,6 +174,12 @@ def main() -> int:
         elif args.command == "fetch-gtfs-rt":
             source = load_source(args.source, args.config)
             result = fetch_realtime_snapshot(args.source, source, args.feed_type, args.url, args.raw_root)
+        elif args.command == "parse-gtfs-rt":
+            result = parse_realtime_snapshot(args.raw_run, args.output_root)
+        elif args.command == "check-rt-compatibility":
+            result = check_realtime_compatibility(args.silver_run, args.realtime_run)
+        elif args.command == "report-gtfs-rt":
+            result = generate_realtime_report(args.realtime_run, args.reports_dir)
         if result is not None:
             print(result)
         return 0
