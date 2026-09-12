@@ -46,3 +46,8 @@ data/serving/*
 data/raw_realtime/*
 !data/raw_realtime/.gitkeep
 *.pb
+
+data/realtime/*
+!data/realtime/.gitkeep
+data/realtime_gold/*
+!data/realtime_gold/.gitkeep

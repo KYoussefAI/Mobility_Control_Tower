@@ -57,3 +57,23 @@ def static_hourly_headway(request: Request, limit: int = Query(default=100, ge=1
 @router.get("/static/route-types", tags=["static"])
 def static_route_types(request: Request, limit: int = Query(default=100, ge=1, le=500)) -> dict[str, Any]:
     return _query(request, "v_route_type_daily_summary", limit)
+
+
+@router.get("/realtime/feed-health", tags=["realtime"])
+def realtime_feed_health(request: Request) -> dict[str, Any]:
+    return _query(request, "v_rt_feed_health", 10)
+
+
+@router.get("/realtime/compatibility", tags=["realtime"])
+def realtime_compatibility(request: Request) -> dict[str, Any]:
+    return _query(request, "v_rt_identifier_compatibility", 20)
+
+
+@router.get("/realtime/top-delayed-routes", tags=["realtime"])
+def realtime_top_delayed_routes(request: Request, limit: int = Query(default=10, ge=1, le=100)) -> dict[str, Any]:
+    return _query(request, "v_rt_top_delayed_routes_snapshot", limit)
+
+
+@router.get("/realtime/top-delayed-stops", tags=["realtime"])
+def realtime_top_delayed_stops(request: Request, limit: int = Query(default=10, ge=1, le=100)) -> dict[str, Any]:
+    return _query(request, "v_rt_top_delayed_stops_snapshot", limit)

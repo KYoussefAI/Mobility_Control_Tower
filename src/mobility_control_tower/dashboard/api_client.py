@@ -11,6 +11,10 @@ ENDPOINTS = {
     "top_routes": "/v1/static/top-routes",
     "hourly_headway": "/v1/static/hourly-headway",
     "route_types": "/v1/static/route-types",
+    "rt_feed_health": "/v1/realtime/feed-health",
+    "rt_compatibility": "/v1/realtime/compatibility",
+    "rt_routes": "/v1/realtime/top-delayed-routes",
+    "rt_stops": "/v1/realtime/top-delayed-stops",
 }
 
 

@@ -25,10 +25,9 @@ Build and publish a serving database first, start the API, then configure the da
 
 ## Limitations
 
-The realtime layer parses individual saved snapshots and reports static identifier
-compatibility, but it does not yet produce KPIs or historical reliability
-metrics. Components run as local processes and there is no scheduler,
-authentication, or operational state store.
+The realtime views describe one saved snapshot and must not be interpreted as
+passenger experience or recurring service reliability. Components run as local
+processes and there is no scheduler, authentication, or operational state store.
 
 ## Development And Releases
 
@@ -42,6 +41,6 @@ one configured Trip Updates, Vehicle Positions, or Service Alerts payload and
 stores `feed.pb` beside acquisition time, HTTP metadata, size, source provenance,
 and SHA-256. Raw run directories are never overwritten.
 
-Parse a saved snapshot with `parse-gtfs-rt`, create a human-readable diagnostic
-with `report-gtfs-rt`, and compare IDs with `check-rt-compatibility`. See
-`docs/realtime_parsing.md`.
+Snapshot-level KPI tables, charts, DuckDB views, API routes, and dashboard panels
+are available for feed health, identifier matching, and observed delays. These
+are bounded diagnostics from one acquisition, not historical service claims.

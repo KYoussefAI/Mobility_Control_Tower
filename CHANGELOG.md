@@ -4,9 +4,9 @@ This changelog records delivered changes using semantic versioning.
 
 ## [Unreleased]
 
-- Establish feature-branch review, contribution guidance, and basic Python/dbt CI.
-- Add immutable acquisition plus protobuf parsing and static identifier matching.
-- Expose realtime acquisition and parsing through the CLI.
+- Establish feature-branch review and basic Python/dbt CI.
+- Add immutable realtime acquisition, parsing, compatibility reporting, snapshot KPIs,
+  serving views, API routes, and dashboard panels.
 
 ## [0.1.0]
 

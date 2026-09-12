@@ -24,6 +24,11 @@ TABLES = [
     "route_type_daily_summary",
     "busiest_route_day",
     "busiest_stop_day",
+    "rt_feed_health_snapshot",
+    "rt_trip_update_enriched",
+    "rt_route_delay_snapshot",
+    "rt_stop_delay_snapshot",
+    "rt_identifier_compatibility_snapshot",
 ]
 ESSENTIAL_TABLES = ("route_daily_trips", "network_daily_summary", "route_period_summary")
 SERVING_CONTRACT_VERSION = 1
@@ -81,6 +86,7 @@ def build_serving_database(
     gold_run: Path,
     serving_root: Path = Path("data/serving"),
     quality_status: str = "unknown",
+    rt_gold_run: Path | None = None,
 ) -> Path:
     normalized_quality = quality_status.strip().lower()
     if normalized_quality in {"failed", "failure", "invalid", "blocked"}:
@@ -90,6 +96,9 @@ def build_serving_database(
     missing = [f"{table}.csv" for table in ESSENTIAL_TABLES if not (gold_run / f"{table}.csv").is_file()]
     if missing:
         raise ValueError(f"Missing essential Gold files: {', '.join(missing)}")
+
+    if rt_gold_run is not None and not rt_gold_run.is_dir():
+        raise FileNotFoundError(f"Realtime Gold run not found: {rt_gold_run}")
 
     run_id = datetime.now(timezone.utc).strftime("serving_%Y%m%dT%H%M%SZ")
     source_id = gold_run.parent.name
@@ -117,6 +126,18 @@ def build_serving_database(
                 path = gold_run / f"{table}.csv"
                 if path.is_file():
                     loaded[table] = _load(connection, table, path)
+
+            if rt_gold_run is not None:
+                for table in [
+                    "rt_feed_health_snapshot",
+                    "rt_trip_update_enriched",
+                    "rt_route_delay_snapshot",
+                    "rt_stop_delay_snapshot",
+                    "rt_identifier_compatibility_snapshot",
+                ]:
+                    path = rt_gold_run / f"{table}.csv"
+                    if path.is_file():
+                        loaded[table] = _load(connection, table, path)
             views = create_views(connection, set(loaded))
         validation = validate_serving_database(db_path)
         final_db_path = output / "mobility_control_tower.duckdb"
@@ -129,6 +150,7 @@ def build_serving_database(
             "tables_loaded": loaded,
             "views_created": views,
             "validation": validation,
+            "realtime_gold_run": str(rt_gold_run) if rt_gold_run else None,
         }
         _atomic_json(temporary / "serving_manifest.json", manifest)
         temporary.rename(output)

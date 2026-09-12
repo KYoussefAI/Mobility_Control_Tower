@@ -23,13 +23,18 @@ def main() -> None:
     st.title("Mobility Control Tower")
     api_url = st.sidebar.text_input("API URL", value=os.environ.get("MCT_API_URL", "http://127.0.0.1:8000"))
     token = None
-    page = st.sidebar.radio("Page", ["Static Network"])
+    page = st.sidebar.radio("Page", ["Static Network", "Realtime Snapshot"])
     data = fetch_dashboard_data(api_url, token)
     if page == "Static Network":
         show("Network overview", data["network_overview"])
         show("Top routes", data["top_routes"])
         show("Planned hourly headway", data["hourly_headway"])
         show("Route types", data["route_types"])
+    elif page == "Realtime Snapshot":
+        show("Feed health", data["rt_feed_health"])
+        show("Identifier compatibility", data["rt_compatibility"])
+        show("Delayed routes", data["rt_routes"])
+        show("Delayed stops", data["rt_stops"])
 
 
 if __name__ == "__main__":

@@ -17,10 +17,13 @@ from mobility_control_tower.ingestion.gtfs_raw import download_and_preserve_gtfs
 from mobility_control_tower.metrics.gtfs_kpis import build_gold
 from mobility_control_tower.profiling.gtfs_profile import profile_raw_run
 from mobility_control_tower.quality.gtfs_quality import validate_silver_run
+from mobility_control_tower.realtime.gtfs_rt_charts import generate_rt_charts
 from mobility_control_tower.realtime.gtfs_rt_compatibility import check_realtime_compatibility
+from mobility_control_tower.realtime.gtfs_rt_kpis import build_rt_gold
 from mobility_control_tower.realtime.gtfs_rt_parser import parse_realtime_snapshot
 from mobility_control_tower.realtime.gtfs_rt_raw import FEED_TYPES, fetch_realtime_snapshot
 from mobility_control_tower.realtime.gtfs_rt_report import generate_realtime_report
+from mobility_control_tower.realtime.gtfs_rt_snapshot_report import generate_rt_snapshot_report
 from mobility_control_tower.reporting.charts import generate_static_charts
 from mobility_control_tower.reporting.demo_report import generate_demo_report, generate_static_mvp_report
 from mobility_control_tower.serving.duckdb_loader import build_serving_database, dataframe_to_text_table, query_serving_database
@@ -83,6 +86,7 @@ def build_parser() -> argparse.ArgumentParser:
     serving = commands.add_parser("build-serving-db")
     serving.add_argument("--gold-run", type=Path, required=True)
     serving.add_argument("--serving-root", type=Path, default=Path("data/serving"))
+    serving.add_argument("--rt-gold-run", type=Path)
     serving.add_argument("--quality-status", default="unknown")
     query = commands.add_parser("query-serving-db")
     query.add_argument("--db-path", type=Path, required=True)
@@ -112,9 +116,19 @@ def build_parser() -> argparse.ArgumentParser:
     compat = commands.add_parser("check-rt-compatibility")
     compat.add_argument("--realtime-run", type=Path, required=True)
     compat.add_argument("--silver-run", type=Path, required=True)
+    rt_gold = commands.add_parser("build-rt-gold")
+    rt_gold.add_argument("--realtime-run", type=Path, required=True)
+    rt_gold.add_argument("--silver-run", type=Path, required=True)
+    rt_gold.add_argument("--output-root", type=Path, default=Path("data/realtime_gold"))
     rt_report = commands.add_parser("report-gtfs-rt")
     rt_report.add_argument("--realtime-run", type=Path, required=True)
     rt_report.add_argument("--reports-dir", type=Path, default=Path("data/reports"))
+    rt_charts = commands.add_parser("generate-rt-charts")
+    rt_charts.add_argument("--rt-gold-run", type=Path, required=True)
+    rt_charts.add_argument("--reports-dir", type=Path, default=Path("data/reports"))
+    rt_snapshot = commands.add_parser("generate-rt-snapshot-report")
+    rt_snapshot.add_argument("--rt-gold-run", type=Path, required=True)
+    rt_snapshot.add_argument("--reports-dir", type=Path, default=Path("data/reports"))
     return parser
 
 
@@ -156,7 +170,7 @@ def main() -> int:
                 suite_name=args.suite, silver_run=args.silver_run, gold_run=args.gold_run, ge_root=args.ge_root, quality_root=args.quality_root
             )
         elif args.command == "build-serving-db":
-            result = build_serving_database(args.gold_run, serving_root=args.serving_root, quality_status=args.quality_status)
+            result = build_serving_database(args.gold_run, serving_root=args.serving_root, quality_status=args.quality_status, rt_gold_run=args.rt_gold_run)
         elif args.command == "query-serving-db":
             result = dataframe_to_text_table(query_serving_database(args.db_path, args.query, args.limit))
         elif args.command == "generate-serving-report":
@@ -178,8 +192,14 @@ def main() -> int:
             result = parse_realtime_snapshot(args.raw_run, args.output_root)
         elif args.command == "check-rt-compatibility":
             result = check_realtime_compatibility(args.silver_run, args.realtime_run)
+        elif args.command == "build-rt-gold":
+            result = build_rt_gold(args.silver_run, args.realtime_run, args.output_root)
         elif args.command == "report-gtfs-rt":
             result = generate_realtime_report(args.realtime_run, args.reports_dir)
+        elif args.command == "generate-rt-charts":
+            result = generate_rt_charts(args.rt_gold_run, args.reports_dir)
+        elif args.command == "generate-rt-snapshot-report":
+            result = generate_rt_snapshot_report(args.rt_gold_run, args.reports_dir)
         if result is not None:
             print(result)
         return 0
