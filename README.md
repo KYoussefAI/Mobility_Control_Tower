@@ -41,3 +41,6 @@ New work uses focused feature branches and pull requests. See `CONTRIBUTING.md`,
 one configured Trip Updates, Vehicle Positions, or Service Alerts payload and
 stores `feed.pb` beside acquisition time, HTTP metadata, size, source provenance,
 and SHA-256. Raw run directories are never overwritten.
+
+Use `mobility-control-tower fetch-gtfs-rt --source tisseo --feed-type
+trip_updates` to acquire one snapshot and inspect the printed raw run directory.
