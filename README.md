@@ -25,10 +25,10 @@ Build and publish a serving database first, start the API, then configure the da
 
 ## Limitations
 
-The dashboard still represents planned static service. The realtime layer in
-this release preserves acquisition evidence only; it does not yet parse payloads
-or produce operational metrics. Components run as local processes and there is
-no scheduler, authentication, or operational state store.
+The realtime layer parses individual saved snapshots and reports static identifier
+compatibility, but it does not yet produce KPIs or historical reliability
+metrics. Components run as local processes and there is no scheduler,
+authentication, or operational state store.
 
 ## Development And Releases
 
@@ -42,5 +42,6 @@ one configured Trip Updates, Vehicle Positions, or Service Alerts payload and
 stores `feed.pb` beside acquisition time, HTTP metadata, size, source provenance,
 and SHA-256. Raw run directories are never overwritten.
 
-Use `mobility-control-tower fetch-gtfs-rt --source tisseo --feed-type
-trip_updates` to acquire one snapshot and inspect the printed raw run directory.
+Parse a saved snapshot with `parse-gtfs-rt`, create a human-readable diagnostic
+with `report-gtfs-rt`, and compare IDs with `check-rt-compatibility`. See
+`docs/realtime_parsing.md`.
