@@ -44,3 +44,8 @@ and SHA-256. Raw run directories are never overwritten.
 Snapshot-level KPI tables, charts, DuckDB views, API routes, and dashboard panels
 are available for feed health, identifier matching, and observed delays. These
 are bounded diagnostics from one acquisition, not historical service claims.
+
+Malformed payloads now fail before partial publication. Timestamp, duplicate,
+missing-identifier, relationship, and partial-update behavior is documented in
+`docs/realtime_input_hardening.md`; unusable snapshots cannot populate operational
+delay tables.

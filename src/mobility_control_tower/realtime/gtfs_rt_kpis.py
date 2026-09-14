@@ -253,6 +253,10 @@ def compute_rt_gold_tables(silver_tables: dict[str, pd.DataFrame], rt_tables: di
 
     if not summary.empty and str(summary.iloc[0].get("feed_type", "")) != "trip_updates":
         raise ValueError("Real-time gold currently supports Trip Updates snapshots only")
+    usable_value = str(summary.iloc[0].get("operationally_usable", "true")).strip().lower() if not summary.empty else "false"
+    operationally_usable = usable_value in {"true", "1", "yes"}
+    metric_trips = trips if operationally_usable else trips.iloc[0:0]
+    metric_stop_updates = stop_updates if operationally_usable else stop_updates.iloc[0:0]
     compatibility = pd.DataFrame(
         [
             _id_compatibility(
@@ -266,9 +270,9 @@ def compute_rt_gold_tables(silver_tables: dict[str, pd.DataFrame], rt_tables: di
     )
     return {
         "rt_feed_health_snapshot": _feed_health(summary, trips, stop_updates),
-        "rt_trip_update_enriched": _enrich_trip_updates(trips, routes, static_trips),
-        "rt_route_delay_snapshot": _aggregate_route_delay(stop_updates, routes),
-        "rt_stop_delay_snapshot": _aggregate_stop_delay(stop_updates, stops),
+        "rt_trip_update_enriched": _enrich_trip_updates(metric_trips, routes, static_trips),
+        "rt_route_delay_snapshot": _aggregate_route_delay(metric_stop_updates, routes),
+        "rt_stop_delay_snapshot": _aggregate_stop_delay(metric_stop_updates, stops),
         "rt_identifier_compatibility_snapshot": compatibility,
     }
 

@@ -76,6 +76,45 @@ def _id_check(name: str, label: str, rt_ids: set[str], static_ids: set[str], opt
     }
 
 
+def _trip_route_relationship_check(silver_run: Path, rt_run: Path) -> dict[str, Any]:
+    realtime = _read_csv(rt_run / "rt_trip_updates.csv")
+    static = _read_csv(silver_run / "trips.csv")
+    if not {"trip_id", "route_id"}.issubset(realtime.columns) or not {"trip_id", "route_id"}.issubset(static.columns):
+        return {
+            "check_name": "trip_route_relationship_matches_static",
+            "status": "NOT_APPLICABLE",
+            "realtime_id_count": 0,
+            "unmatched_count": 0,
+            "unmatched_percentage": 0.0,
+            "sample_unmatched_values": [],
+            "explanation": "Trip-to-route relationships were not available on both sides.",
+        }
+    expected = static[["trip_id", "route_id"]].drop_duplicates()
+    observed = realtime.loc[realtime["trip_id"].str.strip().ne("") & realtime["route_id"].str.strip().ne(""), ["trip_id", "route_id"]].drop_duplicates()
+    if observed.empty:
+        return {
+            "check_name": "trip_route_relationship_matches_static",
+            "status": "NOT_APPLICABLE",
+            "realtime_id_count": 0,
+            "unmatched_count": 0,
+            "unmatched_percentage": 0.0,
+            "sample_unmatched_values": [],
+            "explanation": "No realtime trip-to-route pairs were present.",
+        }
+    compared = observed.merge(expected.assign(_static_match=True), on=["trip_id", "route_id"], how="left")
+    mismatched = compared[compared["_static_match"].isna()]
+    samples = [f"{row.trip_id}:{row.route_id}" for row in mismatched.itertuples()][:10]
+    return {
+        "check_name": "trip_route_relationship_matches_static",
+        "status": "PASS" if mismatched.empty else "WARN",
+        "realtime_id_count": len(observed),
+        "unmatched_count": len(mismatched),
+        "unmatched_percentage": round(len(mismatched) / len(observed) * 100, 2),
+        "sample_unmatched_values": samples,
+        "explanation": f"{len(mismatched)} of {len(observed)} realtime trip-to-route pairs disagree with static trips.",
+    }
+
+
 def _overall_status(checks: list[dict[str, Any]]) -> str:
     statuses = {check["status"] for check in checks}
     if "FAIL" in statuses:
@@ -136,6 +175,7 @@ def check_realtime_compatibility(silver_run: Path, rt_run: Path, reports_dir: Pa
             "trip_id_matches_static_trips", "trip_id", rt_trip_ids, _static_ids(silver_run, "trips", "trip_id"), optional=(feed_type == "service_alerts")
         ),
         _id_check("stop_id_matches_static_stops", "stop_id", rt_stop_ids, _static_ids(silver_run, "stops", "stop_id")),
+        _trip_route_relationship_check(silver_run, rt_run),
     ]
     report = {
         "feed_type": feed_type,

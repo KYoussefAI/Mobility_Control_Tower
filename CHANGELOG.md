@@ -5,8 +5,8 @@ This changelog records delivered changes using semantic versioning.
 ## [Unreleased]
 
 - Establish feature-branch review and basic Python/dbt CI.
-- Add immutable realtime acquisition, parsing, compatibility reporting, snapshot KPIs,
-  serving views, API routes, and dashboard panels.
+- Add immutable realtime acquisition, parsing, compatibility reporting, and snapshot analytics.
+- Harden malformed, stale, future-dated, duplicate, partial, and unusable feed handling.
 
 ## [0.1.0]
 
