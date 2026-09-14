@@ -24,6 +24,7 @@ from mobility_control_tower.realtime.gtfs_rt_parser import parse_realtime_snapsh
 from mobility_control_tower.realtime.gtfs_rt_raw import FEED_TYPES, fetch_realtime_snapshot
 from mobility_control_tower.realtime.gtfs_rt_report import generate_realtime_report
 from mobility_control_tower.realtime.gtfs_rt_snapshot_report import generate_rt_snapshot_report
+from mobility_control_tower.realtime.historical_storage import run_historical_collection
 from mobility_control_tower.reporting.charts import generate_static_charts
 from mobility_control_tower.reporting.demo_report import generate_demo_report, generate_static_mvp_report
 from mobility_control_tower.serving.duckdb_loader import build_serving_database, dataframe_to_text_table, query_serving_database
@@ -129,6 +130,15 @@ def build_parser() -> argparse.ArgumentParser:
     rt_snapshot = commands.add_parser("generate-rt-snapshot-report")
     rt_snapshot.add_argument("--rt-gold-run", type=Path, required=True)
     rt_snapshot.add_argument("--reports-dir", type=Path, default=Path("data/reports"))
+    collect = commands.add_parser("collect-gtfs-rt")
+    collect.add_argument("--source", required=True)
+    collect.add_argument("--feed-type", choices=sorted(FEED_TYPES), default="trip_updates")
+    collect.add_argument("--interval-seconds", type=int, default=60)
+    collect.add_argument("--url")
+    collect.add_argument("--config", type=Path, default=Path("config/sources.yml"))
+    collect.add_argument("--raw-history-root", type=Path, default=Path("data/raw_realtime/historical"))
+    collect.add_argument("--history-root", type=Path, default=Path("data/realtime_history"))
+    collect.add_argument("--max-polls", type=int)
     return parser
 
 
@@ -160,17 +170,31 @@ def main() -> int:
         elif args.command == "generate-static-mvp-report":
             result = generate_static_mvp_report(args.gold_run, args.reports_dir)
         elif args.command == "run-dbt":
-            result = run_dbt(silver_run=args.silver_run, project_dir=args.project_dir, profiles_dir=args.profiles_dir, output_root=args.output_root)
+            result = run_dbt(
+                silver_run=args.silver_run,
+                project_dir=args.project_dir,
+                profiles_dir=args.profiles_dir,
+                output_root=args.output_root,
+            )
         elif args.command == "test-dbt":
             result = test_dbt(args.project_dir, args.profiles_dir)
         elif args.command == "generate-dbt-docs":
             result = generate_dbt_docs(args.project_dir, args.profiles_dir)
         elif args.command == "run-quality-validation":
             result = run_quality_validation(
-                suite_name=args.suite, silver_run=args.silver_run, gold_run=args.gold_run, ge_root=args.ge_root, quality_root=args.quality_root
+                suite_name=args.suite,
+                silver_run=args.silver_run,
+                gold_run=args.gold_run,
+                ge_root=args.ge_root,
+                quality_root=args.quality_root,
             )
         elif args.command == "build-serving-db":
-            result = build_serving_database(args.gold_run, serving_root=args.serving_root, quality_status=args.quality_status, rt_gold_run=args.rt_gold_run)
+            result = build_serving_database(
+                args.gold_run,
+                serving_root=args.serving_root,
+                quality_status=args.quality_status,
+                rt_gold_run=args.rt_gold_run,
+            )
         elif args.command == "query-serving-db":
             result = dataframe_to_text_table(query_serving_database(args.db_path, args.query, args.limit))
         elif args.command == "generate-serving-report":
@@ -200,6 +224,18 @@ def main() -> int:
             result = generate_rt_charts(args.rt_gold_run, args.reports_dir)
         elif args.command == "generate-rt-snapshot-report":
             result = generate_rt_snapshot_report(args.rt_gold_run, args.reports_dir)
+        elif args.command == "collect-gtfs-rt":
+            source = load_source(args.source, args.config)
+            result = run_historical_collection(
+                args.source,
+                source,
+                args.feed_type,
+                url=args.url,
+                max_polls=args.max_polls,
+                interval_seconds=args.interval_seconds,
+                raw_history_root=args.raw_history_root,
+                parsed_history_root=args.history_root,
+            )
         if result is not None:
             print(result)
         return 0

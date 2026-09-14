@@ -5,8 +5,8 @@ This changelog records delivered changes using semantic versioning.
 ## [Unreleased]
 
 - Establish feature-branch review and basic Python/dbt CI.
-- Add immutable realtime acquisition, parsing, compatibility reporting, and snapshot analytics.
-- Harden malformed, stale, future-dated, duplicate, partial, and unusable feed handling.
+- Add hardened realtime snapshot acquisition and analytics.
+- Persist parsed observations in immutable partitioned historical Parquet storage.
 
 ## [0.1.0]
 

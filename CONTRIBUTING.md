@@ -36,5 +36,5 @@ dbt deps --project-dir dbt --profiles-dir dbt
 dbt parse --project-dir dbt --profiles-dir dbt --no-partial-parse
 ```
 
-Python owns ingestion and the Raw, Bronze, and Silver layers. dbt owns analytical
-Gold.
+dbt remains the owner of analytical Gold. Python owns ingestion, Raw, Bronze,
+Silver, and historical realtime persistence.

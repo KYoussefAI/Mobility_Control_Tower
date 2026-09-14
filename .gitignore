@@ -51,3 +51,8 @@ data/realtime/*
 !data/realtime/.gitkeep
 data/realtime_gold/*
 !data/realtime_gold/.gitkeep
+
+data/realtime_history/*
+!data/realtime_history/.gitkeep
+data/history_gold/*
+!data/history_gold/.gitkeep
