@@ -50,6 +50,6 @@ missing-identifier, relationship, and partial-update behavior is documented in
 `docs/realtime_input_hardening.md`; unusable snapshots cannot populate operational
 delay tables.
 
-Repeated snapshots can now be committed to immutable partitioned Parquet history.
-See `docs/historical_storage.md`. No historical trend or reliability claim is
-made until the analytical models are built and tested.
+Immutable history is now modeled by dbt staging and trend marts for delay
+evolution, feed freshness, and trip matching. These models describe collected
+observations and coverage; they do not prove passenger experience.

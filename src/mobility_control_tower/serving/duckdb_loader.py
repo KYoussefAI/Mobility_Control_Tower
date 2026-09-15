@@ -12,7 +12,7 @@ from typing import Any
 import duckdb
 import pandas as pd
 
-from mobility_control_tower.serving.sql_views import QUERY_SQL, create_views
+from mobility_control_tower.serving.sql_views import QUERY_SQL, create_history_views, create_views
 
 TABLES = [
     "route_daily_trips",
@@ -87,6 +87,8 @@ def build_serving_database(
     serving_root: Path = Path("data/serving"),
     quality_status: str = "unknown",
     rt_gold_run: Path | None = None,
+    history_run: Path | None = None,
+    history_gold_run: Path | None = None,
 ) -> Path:
     normalized_quality = quality_status.strip().lower()
     if normalized_quality in {"failed", "failure", "invalid", "blocked"}:
@@ -99,6 +101,11 @@ def build_serving_database(
 
     if rt_gold_run is not None and not rt_gold_run.is_dir():
         raise FileNotFoundError(f"Realtime Gold run not found: {rt_gold_run}")
+
+    if history_run is not None and not history_run.is_dir():
+        raise FileNotFoundError(f"Historical realtime run not found: {history_run}")
+    if history_gold_run is not None and not history_gold_run.is_dir():
+        raise FileNotFoundError(f"Historical Gold run not found: {history_gold_run}")
 
     run_id = datetime.now(timezone.utc).strftime("serving_%Y%m%dT%H%M%SZ")
     source_id = gold_run.parent.name
@@ -139,6 +146,7 @@ def build_serving_database(
                     if path.is_file():
                         loaded[table] = _load(connection, table, path)
             views = create_views(connection, set(loaded))
+            views.extend(create_history_views(connection, history_run, history_gold_run))
         validation = validate_serving_database(db_path)
         final_db_path = output / "mobility_control_tower.duckdb"
         manifest = {
@@ -151,6 +159,8 @@ def build_serving_database(
             "views_created": views,
             "validation": validation,
             "realtime_gold_run": str(rt_gold_run) if rt_gold_run else None,
+            "history_run": str(history_run) if history_run else None,
+            "history_gold_run": str(history_gold_run) if history_gold_run else None,
         }
         _atomic_json(temporary / "serving_manifest.json", manifest)
         temporary.rename(output)

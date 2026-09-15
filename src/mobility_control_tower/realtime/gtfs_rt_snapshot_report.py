@@ -100,11 +100,11 @@ The project can turn a saved GTFS-Realtime snapshot into enriched diagnostic tab
 
 ## 11. Scope of this report
 
-This report evaluates one saved `feed.pb` file at a time. It is not evidence of continuous collection, streaming processing, or operational monitoring.
+This report evaluates one saved `feed.pb` file at a time. It is not evidence of streaming processing or operational monitoring.
 
 ## 12. Interpretation
 
-Compare repeated observations before drawing conclusions about feed freshness, identifier compatibility, or delay behavior over time.
+Use the historical Parquet collection to compare feed freshness and delay behavior across repeated observations; keep this report as per-snapshot diagnostic evidence.
 """
     reports_dir.mkdir(parents=True, exist_ok=True)
     output = reports_dir / f"realtime_snapshot_report_{run_id}.md"

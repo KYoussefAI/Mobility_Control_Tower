@@ -77,3 +77,28 @@ def realtime_top_delayed_routes(request: Request, limit: int = Query(default=10,
 @router.get("/realtime/top-delayed-stops", tags=["realtime"])
 def realtime_top_delayed_stops(request: Request, limit: int = Query(default=10, ge=1, le=100)) -> dict[str, Any]:
     return _query(request, "v_rt_top_delayed_stops_snapshot", limit)
+
+
+@router.get("/history/routes", tags=["history"])
+def history_routes(request: Request, limit: int = Query(default=20, ge=1, le=200)) -> dict[str, Any]:
+    return _query(request, "v_route_delay_history", limit)
+
+
+@router.get("/history/stops", tags=["history"])
+def history_stops(request: Request, limit: int = Query(default=20, ge=1, le=200)) -> dict[str, Any]:
+    return _query(request, "v_stop_delay_history", limit)
+
+
+@router.get("/history/feed-health", tags=["history"])
+def history_feed_health(request: Request, limit: int = Query(default=100, ge=1, le=500)) -> dict[str, Any]:
+    return _query(request, "v_feed_health_history", limit)
+
+
+@router.get("/history/delay-trend", tags=["history"])
+def history_delay_trend(request: Request, limit: int = Query(default=100, ge=1, le=500)) -> dict[str, Any]:
+    return _query(request, "v_collection_summary", limit)
+
+
+@router.get("/history/summary", tags=["history"])
+def history_summary(request: Request, limit: int = Query(default=100, ge=1, le=500)) -> dict[str, Any]:
+    return _query(request, "v_collection_summary", limit)

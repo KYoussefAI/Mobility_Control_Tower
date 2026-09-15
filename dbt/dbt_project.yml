@@ -15,6 +15,7 @@ clean-targets: ["target", "dbt_packages"]
 
 vars:
   silver_run: "../data/fixtures/silver/tisseo/phase1"
+  history_run: "../data/fixtures/realtime_history/tisseo/trip_updates"
 
 models:
   mobility_control_tower:

@@ -279,3 +279,56 @@ models:
         data_type: integer
         description: Rank ordered by scheduled stop departures descending.
         tests: [not_null, unique]
+
+  - name: route_delay_history
+    description: Historical observed delay by route at grain route_id.
+    columns:
+      - name: route_id
+        data_type: varchar
+        description: Realtime route id.
+        tests: [not_null, unique]
+      - name: updates_collected
+        data_type: integer
+        description: Number of stop-time updates observed.
+        tests: [not_null, non_negative]
+
+  - name: stop_delay_history
+    description: Historical observed delay by stop at grain stop_id.
+    columns:
+      - name: stop_id
+        data_type: varchar
+        description: Realtime stop id.
+        tests: [not_null, unique]
+      - name: updates_collected
+        data_type: integer
+        description: Number of stop-time updates observed.
+        tests: [not_null, non_negative]
+
+  - name: delay_evolution_by_hour
+    description: Hourly delay trend at grain collection_date + collection_hour.
+    tests:
+      - unique_combination:
+          arguments:
+            combination_of_columns: [collection_date, collection_hour]
+
+  - name: feed_freshness_trend
+    description: Hourly feed age and parse volume trend at grain collection_date + collection_hour.
+    tests:
+      - unique_combination:
+          arguments:
+            combination_of_columns: [collection_date, collection_hour]
+
+  - name: trip_match_trend
+    description: Observed trip, route, and stop volume trend at grain collection_date + collection_hour.
+    tests:
+      - unique_combination:
+          arguments:
+            combination_of_columns: [collection_date, collection_hour]
+
+  - name: daily_summary
+    description: Daily historical summary at grain collection_date.
+    columns:
+      - name: collection_date
+        data_type: varchar
+        description: Realtime collection date.
+        tests: [not_null, unique]

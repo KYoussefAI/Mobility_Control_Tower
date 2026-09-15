@@ -4,9 +4,12 @@ This changelog records delivered changes using semantic versioning.
 
 ## [Unreleased]
 
-- Establish feature-branch review and basic Python/dbt CI.
-- Add hardened realtime snapshot acquisition and analytics.
-- Persist parsed observations in immutable partitioned historical Parquet storage.
+
+## [0.2.0]
+
+- Add immutable GTFS-Realtime acquisition, hardened parsing, and static matching.
+- Add snapshot KPIs, immutable historical Parquet storage, and dbt historical trend marts.
+- Add historical quality contracts, serving views, API reads, and dashboard panels.
 
 ## [0.1.0]
 

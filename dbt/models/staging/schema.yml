@@ -75,3 +75,49 @@ models:
     description: Regular service calendar loaded from Python Silver GTFS.
   - name: stg_calendar_dates
     description: Service calendar exceptions loaded from Python Silver GTFS.
+  - name: stg_history_stop_time_updates
+    description: Historical GTFS-Realtime stop-time update observations from Parquet.
+    columns:
+      - name: snapshot_timestamp
+        description: Immutable snapshot id assigned at collection time.
+        tests: [not_null]
+      - name: collection_time
+        description: UTC time when the feed was collected.
+        tests: [not_null]
+      - name: feed_age_seconds
+        description: Difference between collection time and feed header timestamp.
+      - name: trip_id
+        description: Realtime trip identifier.
+      - name: route_id
+        description: Realtime route identifier.
+      - name: stop_id
+        description: Realtime stop identifier.
+      - name: delay_seconds
+        description: Arrival delay if present, otherwise departure delay.
+  - name: stg_history_trip_updates
+    description: Historical GTFS-Realtime Trip Update observations from Parquet. Grain is source + snapshot_id + trip_id + route_id after staging.
+    columns:
+      - name: source
+        description: Namespaced source identifier.
+        tests: [not_null]
+      - name: snapshot_id
+        description: Immutable committed snapshot identifier.
+        tests: [not_null]
+      - name: trip_id
+        description: Realtime trip identifier.
+      - name: route_id
+        description: Realtime route identifier.
+      - name: schedule_relationship
+        description: GTFS-Realtime trip schedule relationship.
+  - name: stg_history_feed_summary
+    description: Historical feed-level metadata from preserved GTFS-Realtime snapshots.
+    columns:
+      - name: snapshot_timestamp
+        description: Immutable snapshot id assigned at collection time.
+        tests: [not_null, unique]
+      - name: feed_age_seconds
+        description: Feed freshness in seconds.
+      - name: parsed_entity_count
+        description: Number of parsed feed entities.
+        tests:
+          - non_negative

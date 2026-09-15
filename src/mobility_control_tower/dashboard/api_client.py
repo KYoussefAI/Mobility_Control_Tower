@@ -15,7 +15,14 @@ ENDPOINTS = {
     "rt_compatibility": "/v1/realtime/compatibility",
     "rt_routes": "/v1/realtime/top-delayed-routes",
     "rt_stops": "/v1/realtime/top-delayed-stops",
+    "history_routes": "/v1/history/routes",
+    "history_stops": "/v1/history/stops",
+    "history_feed_health": "/v1/history/feed-health",
+    "history_summary": "/v1/history/summary",
 }
+
+
+ENDPOINTS["history_delay_trend"] = "/v1/history/delay-trend"
 
 
 def get_json(api_url: str, endpoint: str, params: dict[str, Any] | None = None, token: str | None = None) -> dict[str, Any]:

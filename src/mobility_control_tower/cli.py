@@ -15,6 +15,7 @@ from mobility_control_tower.api.report import generate_api_report
 from mobility_control_tower.config import load_source
 from mobility_control_tower.ingestion.gtfs_raw import download_and_preserve_gtfs, preserve_gtfs_zip
 from mobility_control_tower.metrics.gtfs_kpis import build_gold
+from mobility_control_tower.metrics.historical_kpis import build_historical_kpis
 from mobility_control_tower.profiling.gtfs_profile import profile_raw_run
 from mobility_control_tower.quality.gtfs_quality import validate_silver_run
 from mobility_control_tower.realtime.gtfs_rt_charts import generate_rt_charts
@@ -68,7 +69,8 @@ def build_parser() -> argparse.ArgumentParser:
     mvp.add_argument("--gold-run", type=Path, required=True)
     mvp.add_argument("--reports-dir", type=Path, default=Path("data/reports"))
     dbt_run = commands.add_parser("run-dbt")
-    dbt_run.add_argument("--silver-run", type=Path, required=True)
+    dbt_run.add_argument("--silver-run", type=Path)
+    dbt_run.add_argument("--history-run", type=Path)
     dbt_run.add_argument("--project-dir", type=Path, default=Path("dbt"))
     dbt_run.add_argument("--profiles-dir", type=Path, default=Path("dbt"))
     dbt_run.add_argument("--output-root", type=Path, default=Path("data/dbt_gold"))
@@ -79,7 +81,8 @@ def build_parser() -> argparse.ArgumentParser:
     dbt_docs.add_argument("--project-dir", type=Path, default=Path("dbt"))
     dbt_docs.add_argument("--profiles-dir", type=Path, default=Path("dbt"))
     quality = commands.add_parser("run-quality-validation")
-    quality.add_argument("--suite", choices=["silver", "gold", "all"], default="all")
+    quality.add_argument("--suite", choices=["silver", "gold", "history", "all"], default="all")
+    quality.add_argument("--history-run", type=Path)
     quality.add_argument("--silver-run", type=Path)
     quality.add_argument("--gold-run", type=Path)
     quality.add_argument("--ge-root", type=Path, default=Path("quality_contracts"))
@@ -88,6 +91,8 @@ def build_parser() -> argparse.ArgumentParser:
     serving.add_argument("--gold-run", type=Path, required=True)
     serving.add_argument("--serving-root", type=Path, default=Path("data/serving"))
     serving.add_argument("--rt-gold-run", type=Path)
+    serving.add_argument("--history-run", type=Path)
+    serving.add_argument("--history-gold-run", type=Path)
     serving.add_argument("--quality-status", default="unknown")
     query = commands.add_parser("query-serving-db")
     query.add_argument("--db-path", type=Path, required=True)
@@ -139,6 +144,9 @@ def build_parser() -> argparse.ArgumentParser:
     collect.add_argument("--raw-history-root", type=Path, default=Path("data/raw_realtime/historical"))
     collect.add_argument("--history-root", type=Path, default=Path("data/realtime_history"))
     collect.add_argument("--max-polls", type=int)
+    history = commands.add_parser("build-history-kpis")
+    history.add_argument("--history-run", type=Path, required=True)
+    history.add_argument("--output-root", type=Path, default=Path("data/history_gold"))
     return parser
 
 
@@ -172,6 +180,7 @@ def main() -> int:
         elif args.command == "run-dbt":
             result = run_dbt(
                 silver_run=args.silver_run,
+                history_run=args.history_run,
                 project_dir=args.project_dir,
                 profiles_dir=args.profiles_dir,
                 output_root=args.output_root,
@@ -185,6 +194,7 @@ def main() -> int:
                 suite_name=args.suite,
                 silver_run=args.silver_run,
                 gold_run=args.gold_run,
+                history_run=args.history_run,
                 ge_root=args.ge_root,
                 quality_root=args.quality_root,
             )
@@ -194,6 +204,8 @@ def main() -> int:
                 serving_root=args.serving_root,
                 quality_status=args.quality_status,
                 rt_gold_run=args.rt_gold_run,
+                history_run=args.history_run,
+                history_gold_run=args.history_gold_run,
             )
         elif args.command == "query-serving-db":
             result = dataframe_to_text_table(query_serving_database(args.db_path, args.query, args.limit))
@@ -236,6 +248,8 @@ def main() -> int:
                 raw_history_root=args.raw_history_root,
                 parsed_history_root=args.history_root,
             )
+        elif args.command == "build-history-kpis":
+            result = build_historical_kpis(args.history_run, args.output_root)
         if result is not None:
             print(result)
         return 0

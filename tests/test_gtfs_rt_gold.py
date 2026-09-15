@@ -182,5 +182,5 @@ def test_build_rt_gold_charts_and_report(tmp_path: Path) -> None:
     for filename in RT_CHART_FILES:
         assert (figures_dir / filename).is_file()
     assert "GTFS-Realtime snapshot" in report
-    assert "continuous collection" in report
+    assert "historical Parquet collection" in report
     assert "streaming" in report
