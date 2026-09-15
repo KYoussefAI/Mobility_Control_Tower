@@ -53,3 +53,8 @@ delay tables.
 Immutable history is now modeled by dbt staging and trend marts for delay
 evolution, feed freshness, and trip matching. These models describe collected
 observations and coverage; they do not prove passenger experience.
+
+The first authoritative realtime reliability slice adds delay facts,
+distributions, scheduled-trip coverage, and route/network OTP. Missing realtime
+updates remain unknown and do not become cancellations. See
+`docs/delay_coverage_otp.md`.

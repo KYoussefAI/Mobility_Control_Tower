@@ -31,6 +31,13 @@ DBT_STATIC_MODELS = (
     "busiest_stop_day",
 )
 DBT_HISTORY_MODELS = (
+    "realtime_trip_coverage",
+    "fct_realtime_delay_observations",
+    "route_delay_distribution",
+    "stop_delay_distribution",
+    "network_delay_distribution",
+    "route_on_time_performance",
+    "network_on_time_performance",
     "route_delay_history",
     "stop_delay_history",
     "delay_evolution_by_hour",

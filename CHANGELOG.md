@@ -4,6 +4,7 @@ This changelog records delivered changes using semantic versioning.
 
 ## [Unreleased]
 
+- Add eligible realtime observations, delay facts, coverage, distributions, and OTP models.
 
 ## [0.2.0]
 
