@@ -19,6 +19,7 @@ ENDPOINTS = {
     "history_stops": "/v1/history/stops",
     "history_feed_health": "/v1/history/feed-health",
     "history_summary": "/v1/history/summary",
+    "network_reliability": "/v1/network/reliability",
 }
 
 

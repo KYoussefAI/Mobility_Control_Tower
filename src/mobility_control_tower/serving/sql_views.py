@@ -13,6 +13,10 @@ VIEW_DEFINITIONS = {
     "v_rt_identifier_compatibility": ("rt_identifier_compatibility_snapshot", "SELECT * FROM rt_identifier_compatibility_snapshot"),
     "v_rt_top_delayed_routes_snapshot": ("rt_route_delay_snapshot", "SELECT * FROM rt_route_delay_snapshot ORDER BY avg_delay_seconds DESC NULLS LAST"),
     "v_rt_top_delayed_stops_snapshot": ("rt_stop_delay_snapshot", "SELECT * FROM rt_stop_delay_snapshot ORDER BY avg_delay_seconds DESC NULLS LAST"),
+    "v_network_reliability": ("network_reliability_summary", "SELECT * FROM network_reliability_summary"),
+    "v_route_reliability": ("route_delay_distribution", "SELECT * FROM route_delay_distribution"),
+    "v_headway_reliability": ("fct_observed_headways", "SELECT * FROM fct_observed_headways"),
+    "v_reliability_incident_snapshot": ("reliability_incident_snapshot", "SELECT * FROM reliability_incident_snapshot"),
 }
 QUERY_SQL = {
     "network-overview": "SELECT * FROM v_network_overview LIMIT {limit}",
@@ -23,6 +27,9 @@ QUERY_SQL = {
     "rt-compatibility": "SELECT * FROM v_rt_identifier_compatibility LIMIT {limit}",
     "rt-routes": "SELECT * FROM v_rt_top_delayed_routes_snapshot LIMIT {limit}",
     "rt-stops": "SELECT * FROM v_rt_top_delayed_stops_snapshot LIMIT {limit}",
+    "network-reliability": "SELECT * FROM v_network_reliability LIMIT {limit}",
+    "route-reliability": "SELECT * FROM v_route_reliability LIMIT {limit}",
+    "observed-headways": "SELECT * FROM v_headway_reliability LIMIT {limit}",
     "history-routes": "SELECT * FROM v_route_delay_history LIMIT {limit}",
     "history-stops": "SELECT * FROM v_stop_delay_history LIMIT {limit}",
     "history-feed-health": "SELECT * FROM v_feed_health_history LIMIT {limit}",

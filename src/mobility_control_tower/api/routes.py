@@ -102,3 +102,18 @@ def history_delay_trend(request: Request, limit: int = Query(default=100, ge=1, 
 @router.get("/history/summary", tags=["history"])
 def history_summary(request: Request, limit: int = Query(default=100, ge=1, le=500)) -> dict[str, Any]:
     return _query(request, "v_collection_summary", limit)
+
+
+@router.get("/network/reliability", tags=["reliability"])
+def network_reliability(request: Request, limit: int = Query(default=20, ge=1, le=100)) -> dict[str, Any]:
+    return _query(request, "v_network_reliability", limit)
+
+
+@router.get("/routes/{route_id}/reliability", tags=["reliability"])
+def route_reliability(request: Request, route_id: str, limit: int = Query(default=50, ge=1, le=200)) -> dict[str, Any]:
+    return _query(request, "v_route_reliability", limit, {"route_id": route_id})
+
+
+@router.get("/routes/{route_id}/headways", tags=["reliability"])
+def route_headways(request: Request, route_id: str, limit: int = Query(default=50, ge=1, le=200)) -> dict[str, Any]:
+    return _query(request, "v_headway_reliability", limit, {"route_id": route_id})

@@ -29,6 +29,21 @@ TABLES = [
     "rt_route_delay_snapshot",
     "rt_stop_delay_snapshot",
     "rt_identifier_compatibility_snapshot",
+    "fct_explicit_trip_cancellations",
+    "fct_headway_reliability_events",
+    "fct_observed_headways",
+    "fct_realtime_delay_observations",
+    "network_cancellation_summary",
+    "network_delay_distribution",
+    "network_on_time_performance",
+    "network_reliability_summary",
+    "realtime_trip_coverage",
+    "reliability_incident_snapshot",
+    "route_cancellation_summary",
+    "route_delay_distribution",
+    "route_excess_waiting_time",
+    "route_on_time_performance",
+    "stop_delay_distribution",
 ]
 ESSENTIAL_TABLES = ("route_daily_trips", "network_daily_summary", "route_period_summary")
 SERVING_CONTRACT_VERSION = 1
@@ -129,6 +144,21 @@ def build_serving_database(
                 "route_type_daily_summary",
                 "busiest_route_day",
                 "busiest_stop_day",
+                "fct_explicit_trip_cancellations",
+                "fct_headway_reliability_events",
+                "fct_observed_headways",
+                "fct_realtime_delay_observations",
+                "network_cancellation_summary",
+                "network_delay_distribution",
+                "network_on_time_performance",
+                "network_reliability_summary",
+                "realtime_trip_coverage",
+                "reliability_incident_snapshot",
+                "route_cancellation_summary",
+                "route_delay_distribution",
+                "route_excess_waiting_time",
+                "route_on_time_performance",
+                "stop_delay_distribution",
             ]:
                 path = gold_run / f"{table}.csv"
                 if path.is_file():

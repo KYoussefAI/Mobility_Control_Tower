@@ -4,7 +4,8 @@ This changelog records delivered changes using semantic versioning.
 
 ## [Unreleased]
 
-- Add eligible realtime observations, delay facts, coverage, distributions, and OTP models.
+- Add delay, coverage, and OTP models.
+- Add explicit cancellations, observed headways, reliability events, and excess waiting time.
 
 ## [0.2.0]
 

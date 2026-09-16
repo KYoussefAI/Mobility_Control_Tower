@@ -332,3 +332,314 @@ models:
         data_type: varchar
         description: Realtime collection date.
         tests: [not_null, unique]
+
+  - name: realtime_trip_coverage
+    description: Authoritative dbt realtime trip coverage. Grain is source + service_date + route_id + service_period + feed_type + calculation_version.
+    config:
+      contract:
+        enforced: true
+    tests:
+      - unique_combination:
+          arguments:
+            combination_of_columns: [source, service_date, route_id, service_period, feed_type, calculation_version]
+    columns:
+      - name: source
+        data_type: varchar
+        description: Namespaced source identifier.
+        tests: [not_null]
+      - name: service_date
+        data_type: varchar
+        description: Source-local GTFS service date.
+        tests: [not_null]
+      - name: route_id
+        data_type: varchar
+        description: Route identifier within source.
+        tests: [not_null]
+      - name: service_period
+        data_type: varchar
+        description: Analytical service period bucket.
+        tests: [not_null]
+      - name: feed_type
+        data_type: varchar
+        description: Realtime feed type.
+        tests: [not_null]
+      - name: calculation_version
+        data_type: varchar
+        description: KPI calculation version.
+        tests: [not_null]
+      - name: eligible_scheduled_trip_count
+        data_type: integer
+        description: Eligible scheduled trips denominator.
+        tests: [not_null, non_negative]
+      - name: observed_eligible_trip_count
+        data_type: integer
+        description: Matched realtime trip observations numerator.
+        tests: [not_null, non_negative]
+      - name: unobserved_eligible_trip_count
+        data_type: integer
+        description: Eligible scheduled trips with no Trip Update evidence.
+        tests: [not_null, non_negative]
+      - name: unmatched_realtime_trip_count
+        data_type: integer
+        description: Realtime trip observations not matched to eligible scheduled trips.
+        tests: [not_null, non_negative]
+      - name: ambiguous_realtime_trip_count
+        data_type: integer
+        description: Ambiguous realtime observations.
+        tests: [not_null, non_negative]
+      - name: explicit_cancellation_count
+        data_type: integer
+        description: Explicit matched cancellation observations.
+        tests: [not_null, non_negative]
+      - name: coverage_percentage
+        data_type: double
+        description: observed_eligible_trip_count / eligible_scheduled_trip_count * 100.
+      - name: coverage_status
+        data_type: varchar
+        description: Coverage semantic status.
+        tests: [not_null]
+      - name: confidence_status
+        data_type: varchar
+        description: Confidence derived from coverage.
+        tests: [not_null]
+
+  - name: fct_realtime_delay_observations
+    description: Authoritative delay observation fact. Grain is delay_observation_key.
+    columns:
+      - name: delay_observation_key
+        data_type: varchar
+        description: Deterministic delay observation key.
+        tests: [not_null, unique]
+      - name: source
+        data_type: varchar
+        description: Namespaced source identifier.
+        tests: [not_null]
+      - name: delay_seconds
+        data_type: double
+        description: Selected arrival or departure delay; null is not zero.
+      - name: delay_source
+        data_type: varchar
+        description: ARRIVAL_DELAY, DEPARTURE_DELAY, or NO_DELAY_FIELD.
+        tests: [not_null]
+      - name: is_eligible_delay_observation
+        data_type: boolean
+        description: Current, plausible observation with usable delay.
+        tests: [not_null]
+      - name: calculation_version
+        data_type: varchar
+        description: KPI calculation version.
+        tests: [not_null]
+
+  - name: route_delay_distribution
+    description: Authoritative route delay distribution. Grain is source + service_date + service_period + route_id + direction_id + calculation_version.
+    columns: &delay_distribution_columns
+      - name: source
+        data_type: varchar
+        description: Namespaced source identifier.
+        tests: [not_null]
+      - name: service_date
+        data_type: varchar
+        description: Source-local service date.
+        tests: [not_null]
+      - name: service_period
+        data_type: varchar
+        description: Analytical service period.
+        tests: [not_null]
+      - name: calculation_version
+        data_type: varchar
+        description: KPI calculation version.
+        tests: [not_null]
+      - name: eligible_observation_count
+        data_type: integer
+        description: Usable delay observations.
+        tests: [not_null, non_negative]
+      - name: coverage_percentage
+        data_type: double
+        description: Matched trip coverage percentage.
+      - name: confidence_status
+        data_type: varchar
+        description: Confidence/sample-size status.
+        tests: [not_null]
+
+  - name: stop_delay_distribution
+    description: Authoritative stop delay distribution. Grain is source + service_date + service_period + route_id + direction_id + stop_id + calculation_version.
+    columns: *delay_distribution_columns
+
+  - name: network_delay_distribution
+    description: Authoritative network delay distribution. Grain is source + service_date + service_period + calculation_version.
+    columns: *delay_distribution_columns
+
+  - name: route_on_time_performance
+    description: Authoritative route OTP using configured project thresholds. Grain is source + service_date + service_period + route_id + threshold_profile + calculation_version.
+    columns:
+      - name: source
+        data_type: varchar
+        description: Namespaced source identifier.
+        tests: [not_null]
+      - name: route_id
+        data_type: varchar
+        description: Route identifier.
+        tests: [not_null]
+      - name: eligible_delay_observation_count
+        data_type: integer
+        description: Usable delay denominator.
+        tests: [not_null, non_negative]
+      - name: on_time_percentage
+        data_type: double
+        description: On-time observations divided by eligible usable delays.
+      - name: calculation_version
+        data_type: varchar
+        description: KPI calculation version.
+        tests: [not_null]
+
+  - name: network_on_time_performance
+    description: Authoritative network OTP using configured project thresholds.
+    columns:
+      - name: source
+        data_type: varchar
+        description: Namespaced source identifier.
+        tests: [not_null]
+      - name: eligible_delay_observation_count
+        data_type: integer
+        description: Usable delay denominator.
+        tests: [not_null, non_negative]
+      - name: on_time_percentage
+        data_type: double
+        description: On-time percentage.
+      - name: calculation_version
+        data_type: varchar
+        description: KPI calculation version.
+        tests: [not_null]
+
+  - name: fct_explicit_trip_cancellations
+    description: Explicit cancellation fact populated only from GTFS-Realtime cancellation evidence. Grain is cancellation_evidence_key.
+    columns:
+      - name: cancellation_evidence_key
+        data_type: varchar
+        description: Deterministic cancellation evidence key.
+        tests: [not_null, unique]
+      - name: source
+        data_type: varchar
+        description: Namespaced source identifier.
+        tests: [not_null]
+      - name: evidence_type
+        data_type: varchar
+        description: Explicit realtime evidence type.
+        tests: [not_null]
+      - name: calculation_version
+        data_type: varchar
+        description: KPI calculation version.
+        tests: [not_null]
+
+  - name: fct_observed_headways
+    description: Observed headway fact. Grain is source + service_date + route + direction + reference_stop + method + leading/following trip.
+    columns:
+      - name: headway_key
+        data_type: varchar
+        description: Deterministic headway key.
+        tests: [not_null, unique]
+      - name: source
+        data_type: varchar
+        description: Namespaced source identifier.
+        tests: [not_null]
+      - name: observed_headway_seconds
+        data_type: integer
+        description: Observed time between ordered trip observations.
+      - name: observation_method
+        data_type: varchar
+        description: VEHICLE_POSITION_PASSAGE or TRIP_UPDATE_APPROXIMATION.
+        tests: [not_null]
+      - name: calculation_version
+        data_type: varchar
+        description: KPI calculation version.
+        tests: [not_null]
+
+  - name: fct_headway_reliability_events
+    description: Bunching and service-gap events from observed headways.
+    columns:
+      - name: evidence_key
+        data_type: varchar
+        description: Deterministic event evidence key.
+        tests: [not_null, unique]
+      - name: event_type
+        data_type: varchar
+        description: BUNCHING or SERVICE_GAP.
+        tests: [not_null]
+      - name: source
+        data_type: varchar
+        description: Namespaced source identifier.
+        tests: [not_null]
+      - name: calculation_version
+        data_type: varchar
+        description: KPI calculation version.
+        tests: [not_null]
+
+  - name: route_excess_waiting_time
+    description: Excess waiting time by route/stop/method. Ineligible tiny samples return explicit exclusion semantics.
+    columns:
+      - name: source
+        data_type: varchar
+        description: Namespaced source identifier.
+        tests: [not_null]
+      - name: eligibility_status
+        data_type: varchar
+        description: ELIGIBLE or explicit not-enough-data state.
+        tests: [not_null]
+      - name: excess_waiting_time_seconds
+        data_type: double
+        description: Actual expected wait minus scheduled expected wait when eligible.
+      - name: calculation_version
+        data_type: varchar
+        description: KPI calculation version.
+        tests: [not_null]
+
+  - name: network_reliability_summary
+    description: Network reliability status matrix. Grain is source + service_date + service_period + calculation_version.
+    columns:
+      - name: source
+        data_type: varchar
+        description: Namespaced source identifier.
+        tests: [not_null]
+      - name: service_date
+        data_type: varchar
+        description: Source-local service date.
+        tests: [not_null]
+      - name: service_period
+        data_type: varchar
+        description: Analytical service period.
+        tests: [not_null]
+      - name: calculation_version
+        data_type: varchar
+        description: KPI calculation version.
+        tests: [not_null]
+      - name: eligible_scheduled_trip_count
+        data_type: integer
+        description: Eligible scheduled trips.
+        tests: [not_null, non_negative]
+      - name: realtime_coverage_percentage
+        data_type: double
+        description: Realtime coverage percentage.
+      - name: confidence_status
+        data_type: varchar
+        description: Overall confidence status.
+        tests: [not_null]
+
+  - name: reliability_incident_snapshot
+    description: Queryable reliability metrics for serving and downstream analysis.
+    columns:
+      - name: source
+        data_type: varchar
+        description: Namespaced source identifier.
+        tests: [not_null]
+      - name: entity_type
+        data_type: varchar
+        description: Entity type.
+        tests: [not_null]
+      - name: metric_name
+        data_type: varchar
+        description: Metric name.
+        tests: [not_null]
+      - name: calculation_version
+        data_type: varchar
+        description: KPI calculation version.
+        tests: [not_null]

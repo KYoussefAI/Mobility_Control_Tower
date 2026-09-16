@@ -104,7 +104,7 @@ This report evaluates one saved `feed.pb` file at a time. It is not evidence of 
 
 ## 12. Interpretation
 
-Use the historical Parquet collection to compare feed freshness and delay behavior across repeated observations; keep this report as per-snapshot diagnostic evidence.
+Use the historical reliability marts to evaluate patterns across repeated observations; keep this report as per-snapshot diagnostic evidence.
 """
     reports_dir.mkdir(parents=True, exist_ok=True)
     output = reports_dir / f"realtime_snapshot_report_{run_id}.md"
