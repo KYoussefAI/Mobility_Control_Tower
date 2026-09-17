@@ -56,3 +56,7 @@ data/realtime_history/*
 !data/realtime_history/.gitkeep
 data/history_gold/*
 !data/history_gold/.gitkeep
+
+data/pipeline_runs/*
+!data/pipeline_runs/.gitkeep
+data/watermarks/*
