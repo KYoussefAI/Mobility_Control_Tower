@@ -20,7 +20,7 @@ Keep pull requests focused and resolve all required CI failures before merging.
 ## Supported setup
 
 ```bash
-python -m pip install -e ".[dev,quality,analytics]"
+python -m pip install -e ".[dev,quality,analytics,orchestration]"
 ```
 
 ## Checks

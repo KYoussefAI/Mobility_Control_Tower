@@ -2,16 +2,17 @@
 
 ## Overview
 
-Incremental historical processing uses persisted watermarks and storage inventory checks. A refresh selects observations beyond the committed watermark, performs downstream work, and advances state only after successful completion. Repeated processing is therefore recoverable and testable for idempotency.
+Apache Airflow orchestrates the command-line workflows for daily static processing, bounded realtime collection, and incremental historical refresh. DAGs preserve the established ownership boundaries instead of embedding alternative transformation logic in the scheduler.
 
-## Processing Semantics
+## Orchestration
 
 ```text
-discover committed snapshots -> filter by watermark -> build/test/publish -> advance watermark last
+Airflow DAG -> CLI tasks -> Python ingestion/layers -> dbt Gold -> quality -> DuckDB publication
+                    \-> realtime history -> watermark advanced last
 ```
 
-The watermark records processing progress; it does not alter immutable historical snapshots. The project deliberately retains bounded polling rather than introducing a distributed event platform. See [`docs/adr/0002-polling-over-kafka.md`](docs/adr/0002-polling-over-kafka.md).
+The incremental DAG orders collection, analytical refresh, validation, publication, and watermark commitment so failure leaves the previous accepted state recoverable. See [`airflow/README.md`](airflow/README.md), [`docs/architecture/airflow_dag_overview.md`](docs/architecture/airflow_dag_overview.md), and [`docs/historical_collection.md`](docs/historical_collection.md).
 
 ## Verification and Limitations
 
-`scripts/assert_incremental_idempotency.py` checks repeated incremental behavior. Execution remains manually initiated, local, and single-platform; no scheduler coordinates retries or dependencies yet.
+Tests validate DAG structure without presenting scheduler import success as runtime proof. Airflow is a local orchestrator here; there is no PostgreSQL incident domain, authentication, container stack, or observability deployment.

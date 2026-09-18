@@ -4,8 +4,11 @@ This changelog records delivered changes using semantic versioning.
 
 ## [Unreleased]
 
-- Add delay, coverage, and OTP models.
-- Add explicit cancellations, observed headways, reliability events, and excess waiting time.
+
+## [0.3.0]
+
+- Add delay, coverage, on-time-performance, cancellation, headway, and excess-waiting models.
+- Add reconciliation tests, watermarks, incremental idempotency, and Airflow orchestration.
 
 ## [0.2.0]
 

@@ -7,6 +7,7 @@ capabilities delivered by the repository at that release boundary.
 | --- | --- |
 | `v0.1.0` | Static analytical MVP |
 | `v0.2.0` | Historical realtime analytics |
+| `v0.3.0` | Orchestrated local pipelines |
 
 Changes are developed on focused branches, reviewed through pull requests, and
 merged to `main` after required CI checks pass.

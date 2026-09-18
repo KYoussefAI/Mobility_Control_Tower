@@ -60,3 +60,8 @@ data/history_gold/*
 data/pipeline_runs/*
 !data/pipeline_runs/.gitkeep
 data/watermarks/*
+
+airflow/logs/*
+!airflow/logs/.gitkeep
+airflow/airflow.db
+airflow/airflow-webserver.pid
