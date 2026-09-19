@@ -5,6 +5,7 @@ This changelog records delivered changes using semantic versioning.
 ## [Unreleased]
 
 - Add durable incident lifecycle and persistence.
+- Protect operator mutations with scoped, expiring bearer tokens.
 
 ## [0.3.0]
 

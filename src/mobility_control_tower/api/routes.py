@@ -5,11 +5,14 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi import APIRouter, Body, Header, HTTPException, Query, Request
 
 from mobility_control_tower.api.db import database_connected, list_tables_and_views, query_view, view_exists
+from mobility_control_tower.incidents import IncidentEvaluationEngine, IncidentStore, evaluation_result_to_dict
+from mobility_control_tower.security import AuthenticationError, verify_access_token
 
 router = APIRouter()
+JSON_BODY = Body(default_factory=dict)
 
 
 def _db_path(request: Request) -> Path:
@@ -117,3 +120,31 @@ def route_reliability(request: Request, route_id: str, limit: int = Query(defaul
 @router.get("/routes/{route_id}/headways", tags=["reliability"])
 def route_headways(request: Request, route_id: str, limit: int = Query(default=50, ge=1, le=200)) -> dict[str, Any]:
     return _query(request, "v_headway_reliability", limit, {"route_id": route_id})
+
+
+def _operator(authorization: str | None, scopes: set[str]) -> str:
+    if not authorization or not authorization.lower().startswith("bearer "):
+        raise HTTPException(status_code=401, detail="authentication required")
+    try:
+        return verify_access_token(authorization.split(" ", 1)[1], scopes).subject
+    except AuthenticationError:
+        raise HTTPException(status_code=401, detail="authentication required") from None
+
+
+@router.get("/incidents", tags=["operations"])
+def incidents(authorization: str | None = Header(default=None), limit: int = Query(default=100, ge=1, le=500)) -> dict[str, Any]:
+    _operator(authorization, {"incidents:read"})
+    rows = IncidentStore().list_incidents()[:limit]
+    return {"data": rows, "count": len(rows), "source": "incident_store", "notes": []}
+
+
+@router.post("/incidents/evaluate", tags=["operations"])
+def evaluate_incidents(request: Request, authorization: str | None = Header(default=None)) -> dict[str, Any]:
+    _operator(authorization, {"incidents:write"})
+    return evaluation_result_to_dict(IncidentEvaluationEngine(repository=IncidentStore().repository).evaluate())
+
+
+@router.post("/incidents/{incident_id}/acknowledge", tags=["operations"])
+def acknowledge_incident(incident_id: str, payload: dict[str, Any] = JSON_BODY, authorization: str | None = Header(default=None)) -> dict[str, Any]:
+    operator = _operator(authorization, {"incidents:write"})
+    return IncidentStore().transition(incident_id, status="ACKNOWLEDGED", operator=operator, note=str(payload.get("reason", "")))
