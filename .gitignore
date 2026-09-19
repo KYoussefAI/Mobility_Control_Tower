@@ -65,3 +65,6 @@ airflow/logs/*
 !airflow/logs/.gitkeep
 airflow/airflow.db
 airflow/airflow-webserver.pid
+
+data/incidents/*
+*.db

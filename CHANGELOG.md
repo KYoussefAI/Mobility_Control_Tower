@@ -4,6 +4,7 @@ This changelog records delivered changes using semantic versioning.
 
 ## [Unreleased]
 
+- Add durable incident lifecycle and persistence.
 
 ## [0.3.0]
 

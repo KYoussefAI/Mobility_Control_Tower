@@ -13,6 +13,7 @@ from mobility_control_tower.analytics_engineering import generate_dbt_docs, run_
 from mobility_control_tower.api.app import create_app
 from mobility_control_tower.api.report import generate_api_report
 from mobility_control_tower.config import load_source
+from mobility_control_tower.incidents import IncidentEvaluationEngine, IncidentStore, evaluation_result_to_dict, migrate_incident_store
 from mobility_control_tower.ingestion.gtfs_raw import download_and_preserve_gtfs, preserve_gtfs_zip
 from mobility_control_tower.metrics.gtfs_kpis import build_gold
 from mobility_control_tower.metrics.historical_kpis import build_historical_kpis
@@ -147,6 +148,12 @@ def build_parser() -> argparse.ArgumentParser:
     history = commands.add_parser("build-history-kpis")
     history.add_argument("--history-run", type=Path, required=True)
     history.add_argument("--output-root", type=Path, default=Path("data/history_gold"))
+    migrate = commands.add_parser("migrate-incident-store")
+    migrate.add_argument("--root", type=Path, default=Path("data/incidents"))
+    evaluate = commands.add_parser("evaluate-incidents")
+    evaluate.add_argument("--root", type=Path, default=Path("data/incidents"))
+    incidents = commands.add_parser("list-incidents")
+    incidents.add_argument("--root", type=Path, default=Path("data/incidents"))
     return parser
 
 
@@ -250,6 +257,12 @@ def main() -> int:
             )
         elif args.command == "build-history-kpis":
             result = build_historical_kpis(args.history_run, args.output_root)
+        elif args.command == "migrate-incident-store":
+            result = migrate_incident_store(args.root)
+        elif args.command == "evaluate-incidents":
+            result = evaluation_result_to_dict(IncidentEvaluationEngine(repository=IncidentStore(args.root).repository).evaluate())
+        elif args.command == "list-incidents":
+            result = IncidentStore(args.root).list_incidents()
         if result is not None:
             print(result)
         return 0

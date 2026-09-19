@@ -625,7 +625,7 @@ models:
         tests: [not_null]
 
   - name: reliability_incident_snapshot
-    description: Queryable reliability metrics for serving and downstream analysis.
+    description: Queryable reliability metrics used by serving and the incident evaluator.
     columns:
       - name: source
         data_type: varchar

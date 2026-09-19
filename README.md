@@ -15,4 +15,8 @@ The incremental DAG orders collection, analytical refresh, validation, publicati
 
 ## Verification and Limitations
 
-Tests validate DAG structure without presenting scheduler import success as runtime proof. Airflow is a local orchestrator here; there is no PostgreSQL incident domain, authentication, container stack, or observability deployment.
+Tests validate DAG structure without presenting scheduler import success as runtime proof. The local Airflow workflow evaluates persisted PostgreSQL incidents. Operator authentication, a container runtime, and deployed observability are outside the current repository scope.
+
+## Incident lifecycle
+
+The incident domain persists deterministic OPEN, ACKNOWLEDGED, SUPPRESSED, and RESOLVED transitions with audit history in PostgreSQL. See [`docs/incidents.md`](docs/incidents.md).

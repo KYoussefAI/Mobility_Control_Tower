@@ -124,6 +124,17 @@ def advance_refresh_watermark(**context):
         )
 
 
+def evaluate_reliability_incidents(**context):
+    pipeline_context()
+    latest_snapshot = context["ti"].xcom_pull(task_ids="discover_new_snapshots", key="latest_snapshot")
+    f"{context.get('run_id', 'manual')}:{latest_snapshot.get('snapshot_id') if latest_snapshot else 'unknown'}"
+    return run_cli_task(
+        task_id="evaluate_reliability_incidents",
+        command_args=["evaluate-incidents"],
+        context=context,
+    )
+
+
 with DAG(
     dag_id="realtime_incremental_refresh",
     description="Refresh dbt historical marts and serving from committed realtime snapshots.",
@@ -138,6 +149,7 @@ with DAG(
     dbt_history = PythonOperator(task_id="run_dbt_history", python_callable=run_dbt_history)
     quality = PythonOperator(task_id="validate_recent_quality", python_callable=validate_recent_quality)
     serving = PythonOperator(task_id="publish_serving_refresh", python_callable=publish_serving_refresh)
+    incidents = PythonOperator(task_id="evaluate_reliability_incidents", python_callable=evaluate_reliability_incidents)
     watermark = PythonOperator(task_id="advance_refresh_watermark", python_callable=advance_refresh_watermark)
 
-    discover >> dbt_history >> quality >> serving >> watermark
+    discover >> dbt_history >> quality >> serving >> incidents >> watermark
