@@ -131,6 +131,16 @@ def _operator(authorization: str | None, scopes: set[str]) -> str:
         raise HTTPException(status_code=401, detail="authentication required") from None
 
 
+def _limit_operator_action(request: Request, subject: str) -> None:
+    decision = request.app.state.operator_rate_limiter.check(subject)
+    if not decision.allowed:
+        raise HTTPException(
+            status_code=429,
+            detail="request rate limit exceeded",
+            headers={"Retry-After": str(decision.retry_after_seconds)},
+        )
+
+
 @router.get("/incidents", tags=["operations"])
 def incidents(authorization: str | None = Header(default=None), limit: int = Query(default=100, ge=1, le=500)) -> dict[str, Any]:
     _operator(authorization, {"incidents:read"})
@@ -140,11 +150,18 @@ def incidents(authorization: str | None = Header(default=None), limit: int = Que
 
 @router.post("/incidents/evaluate", tags=["operations"])
 def evaluate_incidents(request: Request, authorization: str | None = Header(default=None)) -> dict[str, Any]:
-    _operator(authorization, {"incidents:write"})
+    operator = _operator(authorization, {"incidents:write"})
+    _limit_operator_action(request, operator)
     return evaluation_result_to_dict(IncidentEvaluationEngine(repository=IncidentStore().repository).evaluate())
 
 
 @router.post("/incidents/{incident_id}/acknowledge", tags=["operations"])
-def acknowledge_incident(incident_id: str, payload: dict[str, Any] = JSON_BODY, authorization: str | None = Header(default=None)) -> dict[str, Any]:
+def acknowledge_incident(
+    request: Request,
+    incident_id: str,
+    payload: dict[str, Any] = JSON_BODY,
+    authorization: str | None = Header(default=None),
+) -> dict[str, Any]:
     operator = _operator(authorization, {"incidents:write"})
+    _limit_operator_action(request, operator)
     return IncidentStore().transition(incident_id, status="ACKNOWLEDGED", operator=operator, note=str(payload.get("reason", "")))

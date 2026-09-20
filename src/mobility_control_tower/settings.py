@@ -23,6 +23,8 @@ class AppSettings(BaseSettings):
     feed_age_warning_seconds: int = 600
     feed_age_critical_seconds: int = 1800
     serving_max_age_seconds: int = 86400
+    operator_rate_limit: int = 10
+    operator_rate_window_seconds: int = 60
 
 
 def get_settings() -> AppSettings:

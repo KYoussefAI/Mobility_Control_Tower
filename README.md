@@ -15,8 +15,8 @@ The incremental DAG orders collection, analytical refresh, validation, publicati
 
 ## Verification and Limitations
 
-Tests validate DAG structure without presenting scheduler import success as runtime proof. The local Airflow workflow includes the PostgreSQL incident domain, and mutation endpoints require short-lived, scoped operator tokens. A container runtime and deployed observability are outside the current repository scope.
+Tests validate DAG structure without presenting scheduler import success as runtime proof. The local Airflow workflow includes the PostgreSQL incident domain, scoped operator authentication, and bounded mutation traffic. A container runtime and deployed observability are outside the current repository scope.
 
-## Operator security
+## Bounded operator actions
 
-Read-only serving endpoints remain public. Incident mutations authenticate scoped operators, reject expired or tampered tokens, and write an audit trail. See [`docs/security.md`](docs/security.md).
+Authenticated incident mutations use a deterministic process-local fixed-window rate limiter. Rejected requests receive HTTP 429 and `Retry-After`; the limiter is intentionally not presented as a distributed gateway control. See [`docs/security.md`](docs/security.md).

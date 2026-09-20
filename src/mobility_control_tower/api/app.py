@@ -5,11 +5,13 @@ from pathlib import Path
 from fastapi import FastAPI
 
 from mobility_control_tower.api.db import validate_database_path
+from mobility_control_tower.api.rate_limit import FixedWindowRateLimiter
 from mobility_control_tower.api.routes import router
 
 
-def create_app(db_path: str | Path | None = None) -> FastAPI:
+def create_app(db_path: str | Path | None = None, *, rate_limiter: FixedWindowRateLimiter | None = None) -> FastAPI:
     app = FastAPI(title="Mobility Control Tower API", version="0.3.0")
     app.state.db_path = validate_database_path(db_path) if db_path is not None else None
+    app.state.operator_rate_limiter = rate_limiter or FixedWindowRateLimiter.from_environment()
     app.include_router(router, prefix="/v1")
     return app

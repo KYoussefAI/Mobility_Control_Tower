@@ -13,3 +13,15 @@ recorded in incident events.
 The local/demo profile has an explicit development fallback secret. Other
 profiles require configuration. A public deployment would need an external
 identity provider and secret-management design.
+
+## Process-Local Mutation Limit
+
+Authenticated mutation requests are limited by subject. The default policy is 10
+requests per 60-second fixed window and returns HTTP 429 with `Retry-After` when
+exceeded. `MCT_OPERATOR_RATE_LIMIT` and
+`MCT_OPERATOR_RATE_WINDOW_SECONDS` configure the policy.
+
+Authentication is evaluated first, so failed tokens neither consume allowance
+nor receive scope-specific details. Limiter state resets on process restart and
+is not shared across replicas; this is a local portfolio safeguard, not an
+enterprise or distributed edge-control claim.
