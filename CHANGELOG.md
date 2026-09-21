@@ -7,6 +7,7 @@ This changelog records delivered changes using semantic versioning.
 - Add durable incident lifecycle and persistence.
 - Protect operator mutations with scoped, expiring bearer tokens.
 - Add deterministic process-local rate limiting and security edge-case tests.
+- Add a health-checked local Docker Compose runtime.
 
 ## [0.3.0]
 

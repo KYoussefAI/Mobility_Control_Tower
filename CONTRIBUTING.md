@@ -34,6 +34,8 @@ coverage run -m pytest
 coverage report --fail-under=80
 dbt deps --project-dir dbt --profiles-dir dbt
 dbt parse --project-dir dbt --profiles-dir dbt --no-partial-parse
+docker build -t mobility-control-tower:ci .
+docker compose --profile demo config
 ```
 
 dbt remains the owner of analytical Gold. Python owns ingestion, Raw, Bronze,

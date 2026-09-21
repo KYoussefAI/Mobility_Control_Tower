@@ -27,3 +27,7 @@ jobs:
         run: |
           dbt deps --project-dir dbt --profiles-dir dbt
           dbt parse --project-dir dbt --profiles-dir dbt --no-partial-parse
+      - name: Build image and validate Compose
+        run: |
+          docker build -t mobility-control-tower:ci .
+          docker compose --profile demo config
