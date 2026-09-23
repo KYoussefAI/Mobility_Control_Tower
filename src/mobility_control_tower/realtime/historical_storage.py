@@ -18,6 +18,7 @@ import requests
 from apscheduler.schedulers.background import BackgroundScheduler
 from google.transit import gtfs_realtime_pb2
 
+from mobility_control_tower.observability import FEED_FRESHNESS, HISTORICAL_POLLS, ROWS_PROCESSED
 from mobility_control_tower.realtime.gtfs_rt_parser import (
     DEFAULT_FUTURE_TOLERANCE_SECONDS,
     DEFAULT_STALE_AFTER_SECONDS,
@@ -311,6 +312,11 @@ def collect_gtfs_rt_snapshot(
         raise
 
     _append_jsonl(parsed_history_root / source_id / feed_type / "collection_log.jsonl", metadata)
+    HISTORICAL_POLLS.labels(source=source_id, feed_type=feed_type).inc()
+    rows_processed = sum(len(frame) for frame in history_tables.values())
+    ROWS_PROCESSED.labels(pipeline="historical_realtime", task="collect_gtfs_rt").inc(int(rows_processed))
+    if feed_age is not None:
+        FEED_FRESHNESS.labels(source=source_id, feed_type=feed_type).set(feed_age)
     return metadata
 
 

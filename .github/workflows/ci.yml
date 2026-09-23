@@ -31,3 +31,8 @@ jobs:
         run: |
           docker build -t mobility-control-tower:ci .
           docker compose --profile demo config
+      - name: Validate observability configuration
+        run: |
+          python scripts/validate_grafana_metrics.py
+          docker run --rm --entrypoint /bin/promtool -v "$PWD/observability/prometheus:/etc/prometheus:ro" prom/prometheus:v2.54.1 check config /etc/prometheus/prometheus.yml
+          docker run --rm --entrypoint /bin/promtool -v "$PWD/observability/prometheus:/etc/prometheus:ro" -w /etc/prometheus/tests prom/prometheus:v2.54.1 test rules mct_alerts.test.yml

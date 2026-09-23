@@ -6,9 +6,11 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, Body, Header, HTTPException, Query, Request
+from starlette.responses import Response
 
 from mobility_control_tower.api.db import database_connected, list_tables_and_views, query_view, view_exists
 from mobility_control_tower.incidents import IncidentEvaluationEngine, IncidentStore, evaluation_result_to_dict
+from mobility_control_tower.observability import metrics_response
 from mobility_control_tower.security import AuthenticationError, verify_access_token
 
 router = APIRouter()
@@ -165,3 +167,9 @@ def acknowledge_incident(
     operator = _operator(authorization, {"incidents:write"})
     _limit_operator_action(request, operator)
     return IncidentStore().transition(incident_id, status="ACKNOWLEDGED", operator=operator, note=str(payload.get("reason", "")))
+
+
+@router.get("/pipeline/metrics", tags=["observability"])
+def pipeline_metrics() -> Response:
+    content, content_type = metrics_response()
+    return Response(content=content, media_type=content_type)

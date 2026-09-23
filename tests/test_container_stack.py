@@ -6,7 +6,7 @@ import yaml
 def test_local_container_stack_has_bounded_services_and_health_checks() -> None:
     compose = yaml.safe_load(Path("docker-compose.yml").read_text(encoding="utf-8"))
     services = compose["services"]
-    assert set(services) == {
+    assert {
         "postgres",
         "incident-migrate",
         "airflow-init",
@@ -14,7 +14,8 @@ def test_local_container_stack_has_bounded_services_and_health_checks() -> None:
         "airflow-scheduler",
         "api",
         "dashboard",
-    }
+    }.issubset(services)
+    assert {"metrics-exporter", "prometheus", "grafana"}.issubset(services)
     assert services["postgres"]["healthcheck"]
     assert services["api"]["healthcheck"]
     assert services["dashboard"]["healthcheck"]

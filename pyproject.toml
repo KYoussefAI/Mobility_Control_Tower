@@ -21,6 +21,7 @@ dependencies = [
   "APScheduler>=3.10,<4",
   "pydantic-settings>=2,<3",
   "python-dotenv>=1,<2",
+  "prometheus-client>=0.20,<1",
 ]
 
 [project.optional-dependencies]

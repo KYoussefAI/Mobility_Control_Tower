@@ -15,8 +15,8 @@ The incremental DAG orders collection, analytical refresh, validation, publicati
 
 ## Verification and Limitations
 
-Tests validate DAG structure without presenting scheduler import success as runtime proof. The API, dashboard, PostgreSQL incident store, and Airflow scheduler have a reproducible local container topology. Prometheus and Grafana are not part of this configuration.
+Tests validate DAG structure without presenting scheduler import success as runtime proof. The local container topology now exposes application metrics to Prometheus and Grafana, with alert rules and operator runbooks; it still makes no high-availability claim.
 
-## Container stack
+## Observability
 
-Docker Compose provides explicit health checks, startup ordering, migrations, API, dashboard, and orchestration services for local deployment. See [`docs/deployment.md`](docs/deployment.md).
+API and pipeline metrics, Prometheus rules, Grafana provisioning, and local operator runbooks make feed freshness and pipeline health inspectable.

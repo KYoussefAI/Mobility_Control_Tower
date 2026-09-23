@@ -12,6 +12,17 @@ case "$command" in
       --host "${MCT_API_HOST:-0.0.0.0}" \
       --port "${MCT_API_PORT:-8000}" "$@"
     ;;
+  metrics-exporter)
+    exec python -m mobility_control_tower.cli serve-metrics \
+      --source "${MCT_GTFS_SOURCE:-tisseo}" \
+      --feed-type "${MCT_FEED_TYPE:-trip_updates}" \
+      --serving-root "${MCT_SERVING_ROOT:-data/serving}" \
+      --history-root "${MCT_HISTORY_ROOT:-data/realtime_history}" \
+      --watermark-root "${MCT_WATERMARK_ROOT:-data/watermarks}" \
+      --quality-root "${MCT_QUALITY_ROOT:-data/quality}" \
+      --host "${MCT_METRICS_HOST:-0.0.0.0}" \
+      --port "${MCT_METRICS_PORT:-9108}" "$@"
+    ;;
   incident-migrate)
     exec python -m mobility_control_tower.cli migrate-incident-store --json "$@"
     ;;

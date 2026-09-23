@@ -1,0 +1,33 @@
+{
+  "title": "Mobility Control Tower",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "panels": [
+    {
+      "type": "timeseries",
+      "title": "API Requests",
+      "targets": [{"expr": "sum(rate(mct_api_requests_total[5m])) by (path, status)"}]
+    },
+    {
+      "type": "timeseries",
+      "title": "Pipeline Duration",
+      "targets": [{"expr": "histogram_quantile(0.95, sum(rate(mct_pipeline_duration_seconds_bucket[5m])) by (le, pipeline, task))"}]
+    },
+    {
+      "type": "stat",
+      "title": "Pipeline Failures",
+      "targets": [{"expr": "sum(mct_pipeline_failures_total)"}]
+    },
+    {
+      "type": "timeseries",
+      "title": "Feed Freshness",
+      "targets": [{"expr": "mct_feed_freshness_seconds"}]
+    },
+    {
+      "type": "timeseries",
+      "title": "DuckDB Query Duration p95",
+      "targets": [{"expr": "histogram_quantile(0.95, sum(rate(mct_duckdb_query_duration_seconds_bucket[5m])) by (le, query))"}]
+    }
+  ]
+}

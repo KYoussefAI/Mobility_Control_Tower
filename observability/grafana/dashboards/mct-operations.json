@@ -1,0 +1,43 @@
+{
+  "uid": "mct-operations",
+  "title": "Mobility Control Tower Operations",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "15s",
+  "timezone": "browser",
+  "templating": {
+    "list": [
+      {
+        "name": "source",
+        "type": "query",
+        "datasource": "Prometheus",
+        "query": "label_values(mct_serving_artifact_ready, source)",
+        "current": {"text": "tisseo", "value": "tisseo"}
+      },
+      {
+        "name": "feed_type",
+        "type": "custom",
+        "query": "trip_updates",
+        "current": {"text": "trip_updates", "value": "trip_updates"}
+      }
+    ]
+  },
+  "panels": [
+    {"id": 1, "type": "stat", "title": "Serving Ready", "gridPos": {"x": 0, "y": 0, "w": 6, "h": 4}, "targets": [{"expr": "mct_serving_artifact_ready{source=\"$source\"}"}]},
+    {"id": 2, "type": "stat", "title": "Feed Age Seconds", "gridPos": {"x": 6, "y": 0, "w": 6, "h": 4}, "targets": [{"expr": "mct_realtime_feed_age_seconds{source=\"$source\",feed_type=\"$feed_type\"}"}]},
+    {"id": 3, "type": "stat", "title": "Watermark Age Seconds", "gridPos": {"x": 12, "y": 0, "w": 6, "h": 4}, "targets": [{"expr": "mct_analytics_watermark_age_seconds{source=\"$source\",feed_type=\"$feed_type\"}"}]},
+    {"id": 4, "type": "stat", "title": "Quality Success", "gridPos": {"x": 18, "y": 0, "w": 6, "h": 4}, "targets": [{"expr": "mct_quality_last_success{source=\"$source\",suite=\"all\"}"}]},
+    {"id": 5, "type": "timeseries", "title": "API Request Rate", "gridPos": {"x": 0, "y": 4, "w": 12, "h": 8}, "targets": [{"expr": "sum(rate(mct_api_requests_total[5m])) by (path, status)"}]},
+    {"id": 6, "type": "timeseries", "title": "DuckDB p50/p95 Latency", "gridPos": {"x": 12, "y": 4, "w": 12, "h": 8}, "targets": [{"expr": "histogram_quantile(0.50, sum(rate(mct_duckdb_query_duration_seconds_bucket[5m])) by (le))"}, {"expr": "histogram_quantile(0.95, sum(rate(mct_duckdb_query_duration_seconds_bucket[5m])) by (le))"}]},
+    {"id": 7, "type": "timeseries", "title": "Committed and Unprocessed Snapshots", "gridPos": {"x": 0, "y": 12, "w": 12, "h": 8}, "targets": [{"expr": "mct_realtime_committed_snapshots_total{source=\"$source\",feed_type=\"$feed_type\"}"}, {"expr": "mct_realtime_unprocessed_snapshots{source=\"$source\",feed_type=\"$feed_type\"}"}]},
+    {"id": 8, "type": "timeseries", "title": "Serving Artifact Age", "gridPos": {"x": 12, "y": 12, "w": 12, "h": 8}, "targets": [{"expr": "mct_serving_artifact_age_seconds{source=\"$source\"}"}]},
+    {"id": 9, "type": "timeseries", "title": "Pipeline Status", "gridPos": {"x": 0, "y": 20, "w": 12, "h": 8}, "targets": [{"expr": "mct_pipeline_last_status{source=\"$source\"}"}]},
+    {"id": 10, "type": "timeseries", "title": "Failed Quality Expectations", "gridPos": {"x": 12, "y": 20, "w": 12, "h": 8}, "targets": [{"expr": "mct_quality_failed_expectations{source=\"$source\",suite=\"all\"}"}]},
+    {"id": 11, "type": "stat", "title": "Active Critical Incidents", "gridPos": {"x": 0, "y": 28, "w": 6, "h": 4}, "targets": [{"expr": "sum(mct_incidents_active{source=\"$source\",severity=\"CRITICAL\",status!=\"SUPPRESSED\"})"}]},
+    {"id": 12, "type": "timeseries", "title": "Active Incidents by Rule", "gridPos": {"x": 6, "y": 28, "w": 10, "h": 8}, "targets": [{"expr": "sum(mct_incidents_active{source=\"$source\"}) by (rule, severity, status)"}]},
+    {"id": 13, "type": "timeseries", "title": "Incident Evaluation Candidates", "gridPos": {"x": 16, "y": 28, "w": 8, "h": 8}, "targets": [{"expr": "mct_incident_evaluation_candidates{source=\"$source\"}"}]},
+    {"id": 14, "type": "timeseries", "title": "Incident Evaluation Transitions", "gridPos": {"x": 0, "y": 36, "w": 12, "h": 8}, "targets": [{"expr": "mct_incident_evaluation_transitions{source=\"$source\"}"}]},
+    {"id": 15, "type": "stat", "title": "Last Incident Evaluation Success", "gridPos": {"x": 12, "y": 36, "w": 6, "h": 4}, "targets": [{"expr": "mct_incident_evaluation_last_success_timestamp_seconds{source=\"$source\"}"}]},
+    {"id": 16, "type": "stat", "title": "Suppressed Incidents", "gridPos": {"x": 18, "y": 36, "w": 6, "h": 4}, "targets": [{"expr": "sum(mct_incidents_suppressed{source=\"$source\"})"}]}
+  ]
+}

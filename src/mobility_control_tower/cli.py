@@ -17,6 +17,7 @@ from mobility_control_tower.incidents import IncidentEvaluationEngine, IncidentS
 from mobility_control_tower.ingestion.gtfs_raw import download_and_preserve_gtfs, preserve_gtfs_zip
 from mobility_control_tower.metrics.gtfs_kpis import build_gold
 from mobility_control_tower.metrics.historical_kpis import build_historical_kpis
+from mobility_control_tower.observability_exporter import create_metrics_exporter_app
 from mobility_control_tower.profiling.gtfs_profile import profile_raw_run
 from mobility_control_tower.quality.gtfs_quality import validate_silver_run
 from mobility_control_tower.realtime.gtfs_rt_charts import generate_rt_charts
@@ -154,6 +155,9 @@ def build_parser() -> argparse.ArgumentParser:
     evaluate.add_argument("--root", type=Path, default=Path("data/incidents"))
     incidents = commands.add_parser("list-incidents")
     incidents.add_argument("--root", type=Path, default=Path("data/incidents"))
+    metrics = commands.add_parser("serve-metrics")
+    metrics.add_argument("--host", default="127.0.0.1")
+    metrics.add_argument("--port", type=int, default=9108)
     return parser
 
 
@@ -263,6 +267,9 @@ def main() -> int:
             result = evaluation_result_to_dict(IncidentEvaluationEngine(repository=IncidentStore(args.root).repository).evaluate())
         elif args.command == "list-incidents":
             result = IncidentStore(args.root).list_incidents()
+        elif args.command == "serve-metrics":
+            uvicorn.run(create_metrics_exporter_app(), host=args.host, port=args.port)
+            return 0
         if result is not None:
             print(result)
         return 0
