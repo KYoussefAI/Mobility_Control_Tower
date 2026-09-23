@@ -68,3 +68,7 @@ airflow/airflow-webserver.pid
 
 data/incidents/*
 *.db
+
+data/quality/*
+data/backups/*
+artifacts/*

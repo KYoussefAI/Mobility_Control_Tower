@@ -15,8 +15,8 @@ The incremental DAG orders collection, analytical refresh, validation, publicati
 
 ## Verification and Limitations
 
-Tests validate DAG structure without presenting scheduler import success as runtime proof. The local container topology now exposes application metrics to Prometheus and Grafana, with alert rules and operator runbooks; it still makes no high-availability claim.
+Tests validate DAG structure without presenting scheduler import success as runtime proof. CI now treats quality, dbt parsing, container configuration, production overlay validation, alert rules, and recovery checks as release gates.
 
-## Observability
+## Release-proof verification
 
-API and pipeline metrics, Prometheus rules, Grafana provisioning, and local operator runbooks make feed freshness and pipeline health inspectable.
+The CI workflow and recovery tests fail closed when a required validation tool or recovery proof is unavailable. See [`docs/backup_recovery.md`](docs/backup_recovery.md).

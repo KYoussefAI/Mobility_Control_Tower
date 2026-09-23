@@ -9,6 +9,7 @@ This changelog records delivered changes using semantic versioning.
 - Add deterministic process-local rate limiting and security edge-case tests.
 - Add a health-checked local Docker Compose runtime.
 - Add Prometheus metrics, tested alert rules, and Grafana provisioning.
+- Harden the existing CI with runtime, recovery, overlay, and alert-rule gates.
 
 ## [0.3.0]
 
