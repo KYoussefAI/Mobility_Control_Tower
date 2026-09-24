@@ -8,7 +8,10 @@ def test_release_proof_workflow_and_recovery_gates_are_real() -> None:
     jobs = workflow["jobs"]
     assert "release-proof" in jobs
     rendered = str(jobs["release-proof"])
-    for command in ("docker build", "verify_production_overlay.py", "promtool", "verify_restore.py"):
+    complete_workflow = str(jobs)
+    for command in ("docker build", "verify_production_overlay.py"):
+        assert command in complete_workflow
+    for command in ("docker compose", "promtool", "verify_postgres_restore.py"):
         assert command in rendered
     for path in ("scripts/backup.py", "scripts/restore.py", "docs/backup_recovery.md", "deploy/production.compose.yml"):
         assert Path(path).is_file()

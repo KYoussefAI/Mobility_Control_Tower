@@ -25,9 +25,9 @@ def test_cli_fetch_calls_acquisition_layer(monkeypatch, tmp_path: Path, capsys) 
             "trip_updates",
             "--url",
             "https://example.test/trips.pb",
-            "--raw-root",
+            "--raw-rt-root",
             str(tmp_path / "raw"),
         ],
     )
-    assert cli.main() == 0
-    assert str(expected) in capsys.readouterr().out
+    assert cli.main() is None
+    assert str(expected) in capsys.readouterr().err

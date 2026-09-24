@@ -67,6 +67,14 @@ services:
       postgres:
         condition: service_healthy
 
+  demo-bootstrap:
+    <<: *mct-app
+    command: ["demo-bootstrap"]
+    profiles: ["demo"]
+    depends_on:
+      incident-migrate:
+        condition: service_completed_successfully
+
   airflow-init:
     <<: *mct-app
     command: ["airflow-init"]
@@ -139,6 +147,8 @@ services:
     depends_on:
       incident-migrate:
         condition: service_completed_successfully
+      demo-bootstrap:
+        condition: service_completed_successfully
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8000/health/ready"]
       interval: 10s
@@ -175,6 +185,8 @@ services:
       - "${MCT_METRICS_PORT:-9108}:9108"
     depends_on:
       incident-migrate:
+        condition: service_completed_successfully
+      demo-bootstrap:
         condition: service_completed_successfully
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:9108/metrics | grep -q '^mct_serving_artifact_ready'"]

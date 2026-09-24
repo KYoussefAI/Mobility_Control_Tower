@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "mobility-control-tower"
-version = "0.3.0"
+version = "0.4.0"
 description = "Local public transport data engineering platform"
 requires-python = ">=3.10"
 dependencies = [
@@ -25,7 +25,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8,<9", "coverage[toml]>=7,<8", "httpx2>=2,<3"]
+dev = ["pytest>=8,<9", "coverage[toml]>=7,<8", "httpx2>=2,<3", "playwright>=1.48,<2"]
 quality = ["ruff>=0.6,<1", "black>=24,<25", "isort>=5,<6", "mypy>=1,<2", "types-PyYAML", "types-requests"]
 analytics = ["dbt-core>=1.10,<2", "dbt-duckdb>=1.10,<2"]
 orchestration = ["apache-airflow>=2,<3", "psycopg2-binary>=2.9,<3"]

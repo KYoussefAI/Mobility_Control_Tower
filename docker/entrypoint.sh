@@ -26,6 +26,14 @@ case "$command" in
   incident-migrate)
     exec python -m mobility_control_tower.cli migrate-incident-store --json "$@"
     ;;
+  demo-bootstrap)
+    python scripts/bootstrap_demo.py "$@"
+    python scripts/seed_demo_incidents.py
+    python -m mobility_control_tower.cli evaluate-incidents \
+      --evaluation-time "${MCT_DEMO_EVALUATION_TIME:-2026-07-19T15:00:00+00:00}" \
+      --correlation-id "${MCT_DEMO_CORRELATION_ID:-demo-bootstrap}" \
+      --json
+    ;;
   dashboard)
     export MCT_API_URL="${MCT_API_URL:-http://api:${MCT_API_PORT:-8000}}"
     exec streamlit run src/mobility_control_tower/dashboard/app.py \

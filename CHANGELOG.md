@@ -4,12 +4,12 @@ This changelog records delivered changes using semantic versioning.
 
 ## [Unreleased]
 
-- Add durable incident lifecycle and persistence.
-- Protect operator mutations with scoped, expiring bearer tokens.
-- Add deterministic process-local rate limiting and security edge-case tests.
-- Add a health-checked local Docker Compose runtime.
-- Add Prometheus metrics, tested alert rules, and Grafana provisioning.
-- Harden the existing CI with runtime, recovery, overlay, and alert-rule gates.
+
+## [0.4.0]
+
+- Add durable incidents, scoped expiring tokens, and bounded operator mutations.
+- Add the local container stack, Prometheus/Grafana observability, and recovery gates.
+- Harden CI into runtime/recovery release proof and add reproducible browser evidence.
 
 ## [0.3.0]
 

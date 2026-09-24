@@ -210,54 +210,68 @@ def test_v1_incident_api_authorization_and_events(tmp_path: Path, monkeypatch: p
     import mobility_control_tower.api.routes as route_module
 
     monkeypatch.setattr(route_module, "IncidentStore", lambda: store)
-    client = TestClient(create_app(None))
-    reader = create_access_token("reader", {"incidents:read"}, expires_in_seconds=60)
+    client = TestClient(create_app(None, source="tisseo", serving_root=tmp_path / "serving"))
+    reader = create_access_token("reader", {"operations:read"}, expires_in_seconds=60)
     writer = create_access_token("writer", {"incidents:write"}, expires_in_seconds=60)
 
     assert client.get("/v1/incidents").status_code == 401
-    listed = client.get("/v1/incidents", headers={"Authorization": f"Bearer {reader}"})
+    assert client.get("/v1/incidents", headers={"Authorization": f"Bearer {reader}"}).status_code == 200
+    assert client.post(f"/v1/incidents/{opened.incident_id}/resolve", headers={"Authorization": f"Bearer {writer}"}, json={}).status_code == 422
     ack = client.post(f"/v1/incidents/{opened.incident_id}/acknowledge", headers={"Authorization": f"Bearer {writer}"}, json={"reason": "checking"})
+    events = client.get(f"/v1/incidents/{opened.incident_id}/events", headers={"Authorization": f"Bearer {reader}"})
 
-    assert listed.status_code == 200
-    assert listed.json()["count"] == 1
     assert ack.status_code == 200
-    assert ack.json()["status"] == "ACKNOWLEDGED"
-    assert ack.json()["acknowledged_by"] == "writer"
+    assert ack.json()["data"][0]["acknowledged_by"] == "writer"
+    assert [event["event_type"] for event in events.json()["data"]] == ["OPENED", "ACKNOWLEDGED"]
 
 
 def test_v1_admin_can_trigger_incident_evaluation(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.setenv("MCT_AUTH_SECRET", "incident-api-secret")
 
     class FakeEngine:
-        def __init__(self, *args, **kwargs):  # type: ignore[no-untyped-def]
-            pass
-
-        def evaluate(self):  # type: ignore[no-untyped-def]
+        def evaluate(self, *, source=None, correlation_id=None, dry_run=False):  # type: ignore[no-untyped-def]
             return EvaluationResult(
                 evaluation_run_id="eval-api",
-                correlation_id="eval-api",
+                correlation_id=correlation_id or "eval-api",
                 status="SUCCESS",
-                source_filter=None,
+                source_filter=source,
                 serving_run_id="serving-api",
                 rule_versions={"stale_feed": "stale_feed_v1"},
                 candidate_count=1,
                 skipped_count=1,
-                dry_run=False,
+                dry_run=dry_run,
             )
 
     import mobility_control_tower.api.routes as route_module
 
     monkeypatch.setattr(route_module, "IncidentEvaluationEngine", FakeEngine)
-    client = TestClient(create_app(None))
-    reader = create_access_token("reader", {"incidents:read"}, expires_in_seconds=60)
-    writer = create_access_token("writer", {"incidents:write"}, expires_in_seconds=60)
+    client = TestClient(create_app(None, source="tisseo", serving_root=tmp_path / "serving"))
+    reader = create_access_token("reader", {"operations:read"}, expires_in_seconds=60)
+    admin = create_access_token("admin", {"admin"}, expires_in_seconds=60)
 
     assert client.post("/v1/incidents/evaluate", headers={"Authorization": f"Bearer {reader}"}).status_code == 401
-    response = client.post("/v1/incidents/evaluate", headers={"Authorization": f"Bearer {writer}"})
+    response = client.post("/v1/incidents/evaluate?source=tisseo&dry_run=true", headers={"Authorization": f"Bearer {admin}", "Idempotency-Key": "api-key"})
 
     assert response.status_code == 200
-    assert response.json()["status"] == "SUCCESS"
-    assert response.json()["correlation_id"] == "eval-api"
+    assert response.json()["data"][0]["dry_run"] is True
+    assert response.json()["data"][0]["correlation_id"] == "api-key"
+
+
+def test_metrics_labels_are_bounded(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    store = IncidentStore(tmp_path / "incidents")
+    engine = IncidentEvaluationEngine(repository=store.repository)
+    engine.apply_candidate(candidate("stale_feed:tisseo:trip_updates"), now=FIXED_TIME, correlation_id="corr-1")
+
+    import mobility_control_tower.observability_exporter as exporter
+
+    monkeypatch.setattr(exporter, "IncidentStore", lambda: store)
+    metrics = exporter.collect_operational_metrics(
+        serving_root=tmp_path / "serving", history_root=tmp_path / "history", quality_root=tmp_path / "quality"
+    ).decode()
+
+    assert 'mct_incidents_active{rule="stale_feed",severity="WARNING",source="tisseo",status="OPEN"} 1.0' in metrics
+    assert "incident_id" not in metrics
+    assert "entity_id" not in metrics
 
 
 def test_event_jsonl_is_append_only_compatibility_mirror(tmp_path: Path) -> None:

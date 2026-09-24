@@ -44,7 +44,7 @@ def test_authenticated_operator_mutations_return_429_without_leaking_details(tmp
     monkeypatch.setattr(route_module, "IncidentEvaluationEngine", FakeEvaluationEngine)
     monkeypatch.setattr(route_module, "evaluation_result_to_dict", lambda result: {"evaluation_id": result.evaluation_id, "status": result.status})
     client = TestClient(create_app(None, rate_limiter=limiter))
-    token = create_access_token("operator-one", {"incidents:write"}, expires_in_seconds=60)
+    token = create_access_token("operator-one", {"admin"}, expires_in_seconds=60)
     headers = {"Authorization": f"Bearer {token}"}
 
     assert client.post("/v1/incidents/evaluate", headers=headers).status_code == 200

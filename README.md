@@ -15,8 +15,8 @@ The incremental DAG orders collection, analytical refresh, validation, publicati
 
 ## Verification and Limitations
 
-Tests validate DAG structure without presenting scheduler import success as runtime proof. CI now treats quality, dbt parsing, container configuration, production overlay validation, alert rules, and recovery checks as release gates.
+Tests validate DAG structure without presenting scheduler import success as runtime proof. The full local stack now has a deterministic fixture/bootstrap path and browser-driven evidence capture for the API and dashboard.
 
-## Release-proof verification
+## Reproducible demo evidence
 
-The CI workflow and recovery tests fail closed when a required validation tool or recovery proof is unavailable. See [`docs/backup_recovery.md`](docs/backup_recovery.md).
+Fixture generation, stack bootstrap, browser capture, and evidence collection are scripted so a reviewer can reproduce the demonstrated state. Generated runtime data and screenshots remain excluded from source control. See [`docs/final_demo_guide.md`](docs/final_demo_guide.md).
