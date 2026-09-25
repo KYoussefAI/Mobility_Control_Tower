@@ -4,6 +4,7 @@ This changelog records delivered changes using semantic versioning.
 
 ## [Unreleased]
 
+- Add Toulouse and Rennes source profiles with typed local/S3 storage portability.
 
 ## [0.4.0]
 

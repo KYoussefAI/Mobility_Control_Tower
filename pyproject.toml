@@ -8,6 +8,7 @@ version = "0.4.0"
 description = "Local public transport data engineering platform"
 requires-python = ">=3.10"
 dependencies = [
+  "boto3>=1.34,<2",
   "PyYAML>=6.0,<7",
   "requests>=2.31,<3",
   "pandas>=2.0,<3",

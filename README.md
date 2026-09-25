@@ -15,8 +15,10 @@ The incremental DAG orders collection, analytical refresh, validation, publicati
 
 ## Verification and Limitations
 
-Tests validate DAG structure without presenting scheduler import success as runtime proof. The full local stack now has a deterministic fixture/bootstrap path and browser-driven evidence capture for the API and dashboard.
+Tests validate DAG structure without presenting scheduler import success as runtime proof. Airflow remains a local orchestrator. The repository also includes the PostgreSQL incident domain, scoped operator authentication, process-local rate limits, containers, observability, release gates, and reproducible browser evidence.
 
-## Reproducible demo evidence
+## Multi-city and storage portability
 
-Fixture generation, stack bootstrap, browser capture, and evidence collection are scripted so a reviewer can reproduce the demonstrated state. Generated runtime data and screenshots remain excluded from source control. See [`docs/final_demo_guide.md`](docs/final_demo_guide.md).
+The source catalogue now contains Toulouse and Rennes. Typed settings select a source and a storage backend, while the storage abstraction supports the local filesystem by default and an optional S3-compatible implementation through boto3. See [`docs/multi_city.md`](docs/multi_city.md).
+
+The platform is still local-first. Multi-city configuration and an optional cloud storage adapter do not prove distributed scale, high availability, or a managed cloud deployment.

@@ -1,4 +1,3 @@
-
 sources:
   tisseo:
     name: "Tisséo — Réseau transport urbain toulousain"
@@ -23,6 +22,33 @@ sources:
       service_alerts:
         enabled: true
         url: "https://api.tisseo.fr/opendata/gtfsrt/Alert.pb"
+    expected_freshness:
+      trip_updates_seconds: 90
+      vehicle_positions_seconds: 90
+      service_alerts_seconds: 600
+  star_rennes:
+    name: "STAR — Réseau urbain Rennes Métropole"
+    city: "Rennes"
+    country: "FR"
+    timezone: "Europe/Paris"
+    language: "fr"
+    source_page_url: "https://transport.data.gouv.fr/datasets/versions-des-horaires-theoriques-des-lignes-de-bus-et-de-metro-du-reseau-star-au-format-gtfs"
+    data_gouv_url: "https://transport.data.gouv.fr/datasets/versions-des-horaires-theoriques-des-lignes-de-bus-et-de-metro-du-reseau-star-au-format-gtfs"
+    static_gtfs:
+      enabled: true
+      url: "https://data.explore.star.fr/explore/dataset/tco-busmetro-horaires-gtfs-versions-td/files/latest/download/"
+    licence: "Licence Ouverte"
+    output_filename: "STAR_Rennes_GTFS.zip"
+    realtime:
+      trip_updates:
+        enabled: true
+        url: "https://proxy.transport.data.gouv.fr/resource/star-rennes-gtfs-rt-trip-updates"
+      vehicle_positions:
+        enabled: true
+        url: "https://proxy.transport.data.gouv.fr/resource/star-rennes-gtfs-rt-vehicle-positions"
+      service_alerts:
+        enabled: true
+        url: "https://proxy.transport.data.gouv.fr/resource/star-rennes-integration-gtfs-rt-alerts"
     expected_freshness:
       trip_updates_seconds: 90
       vehicle_positions_seconds: 90
