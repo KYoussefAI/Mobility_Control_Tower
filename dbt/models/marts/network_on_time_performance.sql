@@ -1,21 +1,12 @@
-{{ config(materialized='table') }}
-
 select
-    source,
     service_date,
-    service_period,
-    'default' as threshold_profile,
-    calculation_version,
-    eligible_observation_count as eligible_delay_observation_count,
-    on_time_observation_count,
-    early_observation_count,
-    late_observation_count,
-    case
-        when eligible_observation_count = 0 then null
-        else round(100.0 * on_time_observation_count / eligible_observation_count, 2)
-    end as on_time_percentage,
-    {{ var("early_threshold_seconds", -60) }}::integer as early_threshold_seconds,
-    {{ var("late_threshold_seconds", 300) }}::integer as late_threshold_seconds,
-    coverage_percentage,
-    confidence_status
-from {{ ref('network_delay_distribution') }}
+    count(*) as observed_stop_updates,
+    count(distinct trip_id) as observed_trips,
+    count(*) filter (where is_on_time) as on_time_observations,
+    count(*) filter (where not is_on_time) as outside_on_time_window_observations,
+    round(100.0 * count(*) filter (where is_on_time) / count(*), 2) as on_time_percentage,
+    round(avg(delay_seconds), 1) as average_delay_seconds
+from {{ ref('int_delay_observations') }}
+where static_trip_match and has_known_delay
+group by 1
+

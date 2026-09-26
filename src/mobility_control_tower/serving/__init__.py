@@ -1,1 +1,0 @@
-"""Local DuckDB serving layer."""

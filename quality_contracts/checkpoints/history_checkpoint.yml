@@ -1,6 +1,0 @@
-name: history_checkpoint
-config_version: 1.0
-class_name: Checkpoint
-validations:
-  - expectation_suite_name: history_suite
-

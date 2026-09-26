@@ -1,2 +1,0 @@
-route_id,route_short_name
-R1,1

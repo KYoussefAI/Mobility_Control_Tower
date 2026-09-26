@@ -1,2 +1,0 @@
-trip_id, trip_id
-T1,T999

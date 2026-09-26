@@ -1,8 +1,8 @@
 select
-    cast(trip_id as varchar) as trip_id,
-    cast(stop_id as varchar) as stop_id,
+    nullif(trim(cast(trip_id as varchar)), '') as trip_id,
+    nullif(trim(cast(stop_id as varchar)), '') as stop_id,
     cast(stop_sequence as integer) as stop_sequence,
-    cast(departure_time as varchar) as departure_time,
-    try_cast(departure_time_seconds as integer) as departure_time_seconds
-from {{ silver_csv('stop_times') }}
+    cast(arrival_seconds as integer) as arrival_seconds,
+    cast(departure_seconds as integer) as departure_seconds
+from read_parquet('{{ var("static_path") }}/stop_times.parquet')
 

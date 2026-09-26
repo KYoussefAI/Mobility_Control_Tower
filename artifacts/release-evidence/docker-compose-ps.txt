@@ -1,9 +1,0 @@
-NAME                                         IMAGE                          COMMAND                  SERVICE             CREATED         STATUS                    PORTS
-mobility-control-tower-airflow-scheduler-1   mobility-control-tower:local   "/usr/bin/tini -- /e…"   airflow-scheduler   3 minutes ago   Up 3 minutes (healthy)    8000/tcp, 8080/tcp, 8501/tcp, 9108/tcp
-mobility-control-tower-airflow-webserver-1   mobility-control-tower:local   "/usr/bin/tini -- /e…"   airflow-webserver   3 minutes ago   Up 3 minutes (healthy)    0.0.0.0:8080->8080/tcp, [::]:8080->8080/tcp
-mobility-control-tower-api-1                 mobility-control-tower:local   "/usr/bin/tini -- /e…"   api                 3 minutes ago   Up 3 minutes (healthy)    0.0.0.0:8000->8000/tcp, [::]:8000->8000/tcp
-mobility-control-tower-dashboard-1           mobility-control-tower:local   "/usr/bin/tini -- /e…"   dashboard           2 minutes ago   Up 2 minutes (healthy)    0.0.0.0:8501->8501/tcp, [::]:8501->8501/tcp
-mobility-control-tower-grafana-1             grafana/grafana:11.2.0         "/run.sh"                grafana             3 hours ago     Up 10 minutes (healthy)   0.0.0.0:3000->3000/tcp, [::]:3000->3000/tcp
-mobility-control-tower-metrics-exporter-1    mobility-control-tower:local   "/usr/bin/tini -- /e…"   metrics-exporter    3 minutes ago   Up 3 minutes (healthy)    0.0.0.0:9108->9108/tcp, [::]:9108->9108/tcp
-mobility-control-tower-postgres-1            postgres:16.4-alpine           "docker-entrypoint.s…"   postgres            3 hours ago     Up 11 minutes (healthy)   5432/tcp
-mobility-control-tower-prometheus-1          prom/prometheus:v2.54.1        "/bin/prometheus --c…"   prometheus          3 hours ago     Up 10 minutes (healthy)   0.0.0.0:9090->9090/tcp, [::]:9090->9090/tcp

@@ -1,3 +1,0 @@
-trip_id,arrival_time,departure_time,stop_id,stop_sequence,arrival_time_seconds,departure_time_seconds
-T1,25:10:00,25:12:00,S1,1,90600,90720
-T2,invalid,24:00:00,S2,2,,86400

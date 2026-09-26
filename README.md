@@ -1,254 +1,189 @@
 # Mobility Control Tower
 
-Local-first, production-inspired public transport control tower and portfolio project.
+Mobility Control Tower is an end-to-end public transport data engineering pipeline built on Tisséo GTFS schedule data and GTFS-Realtime TripUpdates.
 
-Mobility Control Tower converts GTFS Schedule and GTFS-Realtime feeds into validated operational intelligence, historical reliability indicators, traceable incidents, and secure analytical APIs. It is not a certified agency dispatch system, predictive AI product, or proof of passenger impact.
+The system preserves source data, transforms it into typed analytical datasets, builds transport reliability models with dbt and DuckDB, orchestrates static and realtime workflows with Airflow, and exposes operational and reliability metrics through Streamlit.
 
-## Architecture Overview
+## Overview
+
+Published schedules describe planned service, while collected TripUpdates describe only the service observed by the realtime feed. Mobility Control Tower combines both sources without inferring service outcomes from missing observations. A scheduled trip without a matching realtime update remains `UNKNOWN`; it is not classified as cancelled, on time, or delayed.
+
+## Architecture
 
 ```mermaid
 flowchart LR
-    GTFS[GTFS Static] --> AF[Airflow]
-    GRT[GTFS-Realtime] --> AF
-    AF --> CLI[CLI]
-    CLI --> RAW[Raw]
-    RAW --> BRONZE[Bronze]
-    BRONZE --> SILVER[Silver]
-    SILVER --> DBT[dbt]
-    GRT --> PARQUET[Historical Parquet]
-    PARQUET --> DBT
-    DBT --> GOLD[dbt Gold Artifact]
-    GOLD --> QC[MCT Quality Contracts]
-    QC --> DUCK[DuckDB]
-    DUCK --> API[FastAPI /v1]
-    API --> DASH[Streamlit]
-    API --> INC[Incident lifecycle]
-    API --> PROM[Prometheus /pipeline/metrics]
-    PROM --> GRAF[Grafana dashboard JSON]
-    DBT --> LIN[OpenLineage-compatible events]
-    RAW -. optional .-> S3[(Amazon S3)]
-    PARQUET -. optional .-> S3
+    A[Tisséo GTFS ZIP] --> B[Python ingestion]
+    R[Tisséo GTFS-RT TripUpdates] --> B
+    B --> C[Raw source payloads and metadata]
+    C --> D[Bronze GTFS text]
+    D --> E[Silver typed Parquet]
+    C --> E
+    E --> F[dbt staging and intermediate models]
+    F --> G[dbt marts in DuckDB]
+    G --> H[Streamlit dashboard]
+    I[Airflow] -. orchestrates .-> B
+    J[pytest and dbt tests] -. validates .-> E
+    J -. validates .-> F
 ```
 
-See `docs/architecture/portfolio_architecture.md` for the polished portfolio diagram.
+Python owns collection, source preservation, parsing, Raw, Bronze, Silver, and pre-analytics validation. dbt owns analytical transformations, metric definitions, tests, and marts. DuckDB is the analytical database and dashboard source. See [Architecture](docs/architecture.md) for component boundaries.
 
-## Features
+## Data Sources
 
-- Static GTFS ingestion with immutable raw preservation.
-- GTFS-Realtime Trip Updates, Vehicle Positions, and Service Alerts where a source provides them.
-- Raw, Bronze, Silver, Gold medallion architecture.
-- Partitioned Parquet historical storage.
-- dbt staging, intermediate, mart, and authoritative reliability KPI models after Silver.
-- MCT quality-contract suites and generated validation docs.
-- DuckDB serving layer with efficient Parquet-backed views.
-- FastAPI operator API with bounded read endpoints and scoped incident mutations.
-- Streamlit operator dashboard for current status, incidents, route reliability, fleet, alerts, data trust, and city comparison.
-- Persistent incident lifecycle with acknowledgement, resolution, deduplication, evidence, and audit events.
-- Expiring bearer tokens with scopes for operator writes.
-- Process-local rate limiting for authenticated operator mutations, with explicit 429 responses.
-- OpenLineage-compatible local event generation with honest backend status.
-- Apache Airflow DAGs that call the CLI.
-- Prometheus metrics and Grafana dashboard JSON.
-- Optional local/S3 storage abstraction via boto3.
-- Multi-city configuration: Tisseo Toulouse and STAR Rennes.
-- Performance benchmark command and Markdown reports.
-- Docker, Docker Compose, GitHub Actions, pre-commit, Ruff, Black, isort, MyPy, coverage.
+- [Tisséo public dataset](https://transport.data.gouv.fr/datasets/tisseo-reseau-transport-urbain-toulousain)
+- Tisséo GTFS schedule ZIP, configured in `config/source.yml`
+- Tisséo GTFS-Realtime TripUpdates
+- Source licence: ODbL
 
-## Portfolio Evidence
+## Data Pipeline
 
-Screenshots can be generated from the deterministic demo when Docker is available. Use `make demo`, then capture dashboard, Grafana, Airflow, and API documentation views from the local URLs below.
+Static schedule flow:
 
-## Tech Stack
-
-Python 3.10, Pandas, PyArrow, DuckDB, FastAPI, Streamlit, APScheduler, Airflow, dbt Core, dbt-duckdb, Prometheus client, boto3, Docker, pytest, coverage.py, Ruff, Black, isort, MyPy.
-
-## Deterministic Demo
-
-```bash
-cp .env.example .env
-make demo
-make demo-smoke
-make lineage-smoke
-make security-check
+```text
+GTFS ZIP
+  → Raw ZIP, metadata, checksum, and ingestion timestamp
+  → Bronze selected GTFS text files
+  → Silver normalized, typed Parquet
+  → dbt models and tests
+  → DuckDB marts
 ```
 
-Local URLs:
+Realtime flow:
 
-- API: `http://localhost:8000`
-- API readiness: `http://localhost:8000/health/ready`
-- OpenAPI: `http://localhost:8000/docs`
-- Dashboard: `http://localhost:8501`
-- Airflow: `http://localhost:8080`
-- Prometheus: `http://localhost:9090`
-- Grafana: `http://localhost:3000`
-- MCT metrics exporter: `http://localhost:9108/metrics`
-
-The demo uses deterministic fixture Silver data and committed historical realtime snapshots. It does not fetch live feeds.
-Reliability values served by the API and dashboard come from dbt-produced Gold
-marts exposed through DuckDB serving views. Python reliability helpers are kept
-only for diagnostics, fixture support, or migration reconciliation.
-
-Non-Docker local checks:
-
-```bash
-python scripts/create_deterministic_fixture.py
-dbt build --project-dir dbt --profiles-dir dbt --vars '{"silver_run":"data/fixtures/silver/tisseo/phase1","history_run":"data/fixtures/realtime_history/tisseo/trip_updates"}'
-make verify-restore
-make benchmark
+```text
+GTFS-RT TripUpdates
+  → Raw protobuf, metadata, checksum, and collection timestamp
+  → Silver feed, trip, and stop-time Parquet partitions
+  → dbt models and tests
+  → DuckDB marts
 ```
 
-## Local Development
+Static runs receive UTC run identifiers. Realtime snapshot identifiers combine the publisher timestamp with the payload checksum, so retries of identical content are idempotent. Arrival delay is preferred when present; departure delay is the fallback.
+
+## Data Model
+
+The dbt project contains 17 models:
+
+- Staging: `stg_routes`, `stg_trips`, `stg_stops`, `stg_stop_times`, `stg_calendar`, `stg_calendar_dates`, `stg_realtime_updates`, `stg_feed_snapshots`
+- Intermediate: `int_service_dates`, `int_scheduled_trips`, `int_delay_observations`
+- Marts: `route_daily_service`, `route_delay_summary`, `hourly_delay_summary`, `network_on_time_performance`, `realtime_coverage`, `feed_freshness`
+
+Grains, keys, relationships, and metric contracts are documented in [Data Model](docs/data_model.md).
+
+## Metrics and Data Semantics
+
+| Metric or status | Definition |
+| --- | --- |
+| Scheduled trips | Distinct trips active for a route and GTFS service date |
+| Realtime coverage | Exactly matched realtime trips divided by eligible scheduled trips |
+| On-time window | Delay from -60 through +300 seconds, inclusive |
+| Eligible delay | Known delay within ±7,200 seconds |
+| Delay statistics | Average, median, and P90 over eligible matched stop-time observations |
+| Reliable sample | At least 5 eligible observations; smaller groups are `LOW_SAMPLE` |
+| Feed freshness | `FRESH` through 90 seconds, `DELAYED` through 300 seconds, then `STALE` |
+| Missing publisher time | `UNKNOWN` freshness |
+| Missing realtime match | `UNKNOWN` service observation |
+
+Values outside the delay sanity bound are retained as `OUT_OF_RANGE` but excluded from reliability denominators. On-time performance is observation-weighted and should be interpreted with realtime coverage and sample status.
+
+## Data Quality
+
+Python checks validate:
+
+- required GTFS files and nonblank identifiers;
+- unique route, trip, stop, and trip/stop-sequence keys;
+- trip-to-route and stop-time relationships;
+- GTFS times, including values after 24:00 such as `25:05:00`;
+- realtime snapshot lineage and within-snapshot uniqueness;
+- delay sanity conditions.
+
+dbt adds `not_null`, `unique`, `relationships`, and `accepted_values` tests, plus assertions for percentage bounds, delay eligibility, coverage reconciliation, and metric numerators and denominators.
+
+## Orchestration
+
+Airflow defines exactly two DAGs:
+
+- `static_gtfs_pipeline`, scheduled daily at 03:00 UTC: `download_and_preserve → build_silver → quality_checks → dbt_build`
+- `realtime_pipeline`, scheduled every five minutes: `fetch_parse_and_append → quality_checks → dbt_build`
+
+Both DAGs call the same tested Python functions exposed by the CLI workflows.
+
+## Dashboard
+
+The Streamlit application has three sections:
+
+1. Network Overview
+2. Route Reliability
+3. Data Quality / Feed Health
+
+Delay seconds and on-time percentages are plotted separately. Empty states remain visible when observations are unavailable, `LOW_SAMPLE` warnings identify small groups, and coverage is presented alongside reliability metrics.
+
+## Technology Stack
+
+Python, GTFS, GTFS-Realtime, Parquet, dbt, DuckDB, Apache Airflow, Streamlit, pytest, Docker, Docker Compose, and GitHub Actions.
+
+## Getting Started
+
+Python 3.11 is supported.
 
 ```bash
 python -m venv .venv
-source .venv/bin/activate
-python -m pip install --upgrade pip
-python -m pip install -e '.[dev,quality,analytics,orchestration]'
-PYTHONPATH=src python -m pytest
+source .venv/bin/activate  # Windows PowerShell: .venv\Scripts\Activate.ps1
+python -m pip install -e ".[dev,analytics]"
 ```
 
-## Docker
-
-The Docker image is multi-stage and non-root. Compose provides service-specific health checks and uses PostgreSQL for Airflow metadata.
+Install the `orchestration` dependency group when running or validating Airflow outside Docker:
 
 ```bash
-docker compose --profile demo up --build -d
-docker compose run --rm api cli --help
+python -m pip install -e ".[orchestration]"
 ```
 
-Compose services:
+## Configuration
 
-- `postgres`
-- `demo-bootstrap`
-- `api`
-- `dashboard`
-- `airflow-init`
-- `airflow-webserver`
-- `airflow-scheduler`
-- `metrics-exporter`
-- `prometheus`
-- `grafana`
+Source URLs, timezone, licence, and freshness thresholds are defined in `config/source.yml`. Runtime paths can be overridden with:
 
-## Airflow
+- `MCT_DATA_ROOT`
+- `MCT_DBT_DATABASE_PATH`
 
-Airflow orchestrates the CLI instead of replacing it.
+dbt receives the active source paths and analytical thresholds from the Python runner.
 
-- `daily_static_pipeline`: ingestion, Bronze, Silver, real dbt build, MCT quality contracts, reports, serving publication.
-- `realtime_snapshot_collection`: one bounded realtime poll and committed snapshot only.
-- `realtime_incremental_refresh`: committed snapshots after the watermark, dbt historical marts, quality, serving refresh, watermark update last.
-- `daily_platform_maintenance`: full-history quality and safe storage inventory.
+## Running the Pipelines
 
 ```bash
-docker compose exec airflow-webserver airflow dags trigger daily_static_pipeline
-docker compose exec airflow-webserver airflow dags trigger realtime_snapshot_collection
-docker compose exec airflow-webserver airflow dags trigger realtime_incremental_refresh
+mct static-pipeline
+mct collect-realtime
+mct dbt-build
+streamlit run dashboard/app.py
 ```
 
-## API
-
-Versioned routes are available under `/v1/`; unversioned compatibility routes remain.
-
-Examples:
-
-- `/v1/health`
-- `/v1/metadata`
-- `/v1/static/top-routes`
-- `/v1/history/routes`
-- `/v1/quality/summary`
-- `/pipeline/metrics`
-
-Operator mutations are authenticated before they consume the process-local
-fixed-window limit. Configure `MCT_OPERATOR_RATE_LIMIT` and
-`MCT_OPERATOR_RATE_WINDOW_SECONDS`; this is a single-process safeguard, not a
-distributed gateway or managed WAF.
-
-## Dashboard Usage
-
-The Streamlit dashboard includes:
-
-- Operational MVP
-- Historical Analytics
-- Data Quality
-
-## dbt
-
-dbt starts after Python Silver and historical Parquet:
+After a static run exists, one complete realtime poll can be executed with:
 
 ```bash
-PYTHONPATH=src python -m mobility_control_tower.cli run-dbt \
-  --silver-run data/silver/tisseo/<run_id> \
-  --history-run data/realtime_history/tisseo/trip_updates
-
-PYTHONPATH=src python -m mobility_control_tower.cli test-dbt
-PYTHONPATH=src python -m mobility_control_tower.cli generate-dbt-docs
+mct realtime-pipeline
 ```
 
-## MCT Quality Contracts
+Run `mct --help` for the complete command list.
+
+## Deterministic Fixture
+
+Tests and CI use source-controlled GTFS records plus a generated GTFS-Realtime protobuf:
 
 ```bash
-PYTHONPATH=src python -m mobility_control_tower.cli run-quality-validation \
-  --suite all \
-  --silver-run data/silver/tisseo/<run_id> \
-  --gold-run data/dbt_gold/tisseo/<dbt_run_id> \
-  --history-run data/realtime_history/tisseo/trip_updates
+python scripts/create_ci_fixture.py data/ci
+mct --data-root data/ci dbt-build --static-run data/ci/silver/static/20260101T120000000000Z
 ```
 
-## Serving Artifact Contract
+The fixture command resets only the requested child directory under `data/`. Repeated runs generate the same files and metadata.
 
-Production consumers resolve DuckDB through `data/serving/<source>/current.json`. Serving runs live under `data/serving/<source>/runs/<serving_run_id>/` with `mobility_control_tower.duckdb` and `serving_manifest.json`. Publication builds in a temporary run directory, validates the database, renames the run into place, and replaces `current.json` last. Failed builds preserve the prior current artifact.
-
-## Observability
-
-API process metrics are exposed at:
-
-```text
-/pipeline/metrics
-```
-
-The MCT metrics exporter exposes durable pipeline, watermark, serving, quality, and collection metrics at `/metrics`. Prometheus scrapes both API and exporter endpoints.
-
-Grafana dashboards and Prometheus rules are provisioned from:
-
-```text
-observability/grafana/
-observability/prometheus/
-```
-
-## Cloud-Ready Storage
-
-Local mode remains the default. Optional S3 storage is selected with settings:
+To inspect the fixture database in Streamlit:
 
 ```bash
-MCT_STORAGE_BACKEND=local
-MCT_STORAGE_BACKEND=s3
-MCT_S3_BUCKET=<bucket>
-MCT_S3_PREFIX=mobility-control-tower
+MCT_DBT_DATABASE_PATH=data/ci/mart/mobility_control_tower.duckdb streamlit run dashboard/app.py
 ```
 
-The abstraction is implemented in `src/mobility_control_tower/storage.py`. It is an optional storage capability, not evidence that this repository has been deployed to a cloud environment.
+In Windows PowerShell, set the path with `$env:MCT_DBT_DATABASE_PATH = "data/ci/mart/mobility_control_tower.duckdb"` before launching Streamlit.
 
-## Multi-City Support
-
-Configured sources:
-
-- `tisseo`: Toulouse Tisseo
-- `star_rennes`: Rennes STAR
-
-Each source has independent config, storage roots, serving paths, and report paths through the existing CLI arguments.
-
-## Performance Benchmarks
-
-```bash
-PYTHONPATH=src python -m mobility_control_tower.cli run-benchmarks \
-  --silver-run data/silver/tisseo/<run_id> \
-  --gold-run data/gold/tisseo/<run_id> \
-  --history-run data/realtime_history/tisseo/trip_updates \
-  --db data/serving/tisseo/<run_id>/mobility_control_tower.duckdb
-```
-
-Reports are written to `data/benchmarks/`.
-
-## Testing And Quality
+## Testing
 
 ```bash
 ruff check .
@@ -257,73 +192,48 @@ isort --check-only .
 mypy src
 coverage run -m pytest
 coverage report --fail-under=80
+python scripts/create_ci_fixture.py data/ci
+mct --data-root data/ci dbt-build --static-run data/ci/silver/static/20260101T120000000000Z
+docker compose config --quiet
 ```
 
-## Deterministic Analytical Fixture
+The GitHub Actions workflow runs Python quality checks, tests with the configured coverage threshold, the deterministic dbt build, and a container image build.
+
+## Docker
 
 ```bash
-python scripts/create_deterministic_fixture.py
-python -m mobility_control_tower.cli run-dbt --silver-run data/fixtures/silver/tisseo/phase1 --history-run data/fixtures/realtime_history/tisseo/trip_updates --output-root data/fixtures/dbt_gold
-python -m mobility_control_tower.cli run-quality-validation --suite all --silver-run data/fixtures/silver/tisseo/phase1 --gold-run data/fixtures/dbt_gold/tisseo/<dbt_run_id> --history-run data/fixtures/realtime_history/tisseo/trip_updates
-python -m mobility_control_tower.cli build-serving-db --gold-run data/fixtures/dbt_gold/tisseo/<dbt_run_id> --history-run data/fixtures/realtime_history/tisseo/trip_updates --history-gold-run data/fixtures/dbt_gold/tisseo/<dbt_run_id> --serving-root data/fixtures/serving
-python -m mobility_control_tower.cli query-serving-db --db data/fixtures/serving/tisseo/<dbt_run_id>/mobility_control_tower.duckdb --query-name network-overview --limit 10
+cp .env.example .env
+docker compose up --build
 ```
 
-## CI
+- Streamlit: `http://localhost:8501`
+- Airflow: `http://localhost:8080` (`airflow` / `airflow`)
 
-GitHub Actions run on push and pull request:
+Compose runs Airflow initialization, the webserver, the scheduler, and Streamlit against the shared `data/` volume.
 
-- dependency installation
-- Ruff
-- Black
-- isort
-- MyPy
-- pytest with coverage
-- incident-store migration and deterministic incident evaluation
-- Docker build
-- `release-proof`, which builds the Compose image, starts PostgreSQL/Airflow/API/dashboard/Prometheus/Grafana, runs PostgreSQL-backed incident evaluation, browser smoke tests, screenshots, restore verification, failure injection, and uploads `artifacts/release-evidence/`
+## Project Structure
 
-The `release-proof` job is the authoritative Docker runtime gate. Local WSL environments without Docker must not be treated as Compose verification.
+```text
+.
+├── src/mobility_control_tower/  # ingestion, normalization, quality, dbt runner, CLI
+├── dbt/models/                  # staging, intermediate, and marts
+├── airflow/dags/                # two orchestration workflows
+├── dashboard/app.py             # Streamlit application
+├── scripts/create_ci_fixture.py # deterministic CI data
+├── tests/                       # Python tests and source fixtures
+├── config/source.yml            # Tisséo source configuration
+├── docs/                        # architecture and data model
+├── Dockerfile
+└── docker-compose.yml
+```
 
-## Operational Incidents
+Runtime data, DuckDB files, dbt targets and logs, Airflow state, coverage output, caches, local environment files, and package metadata are ignored by Git.
 
-Reliability incidents are evaluated from authoritative dbt and serving outputs, not from Python KPI recalculation. Local non-Docker mode defaults to SQLite. Docker Compose and production profiles use PostgreSQL through `MCT_INCIDENT_BACKEND=postgres` and `MCT_INCIDENT_DATABASE_URL`.
+## Technical Limitations
 
-Run `python -m mobility_control_tower.cli migrate-incident-store --json` before first use, then `python -m mobility_control_tower.cli evaluate-incidents --source tisseo --json` after serving publication. See `docs/incidents.md` for rule versions, state transitions, suppression, API scopes, dashboard behavior, and Prometheus metrics.
-
-## Runtime Evidence
-
-Release evidence is generated by GitHub Actions and stored as workflow artifacts:
-
-- `artifacts/release-evidence/manifest.json`
-- runtime health, Airflow, Prometheus, Grafana, browser, restore, and failure-injection reports
-- container logs and Compose status
-- deterministic screenshots under `artifacts/release-evidence/screenshots/`
-
-Repository portfolio screenshots are committed only after successful deterministic capture. CI diagnostic screenshots, traces, and logs remain workflow artifacts.
-
-## Documentation
-
-- `docs/portfolio_case_study.md`
-- `docs/interview_questions.md`
-- `docs/settings.md`
-- `docs/airflow.md`
-- `docs/dbt.md`
-- `docs/quality_contracts.md`
-- `docs/historical_collection.md`
-- `docs/incidents.md`
-- `docs/architecture/`
-- `docs/release_process.md`
-- `CHANGELOG.md`
-- `CONTRIBUTING.md`
-
-## Known Limitations
-
-- The S3 adapter is not wired into every data-producing module.
-- Source-compatibility evidence is limited to the named Toulouse and Rennes profiles.
-- The project does not provide multi-tenant isolation, an external identity provider, distributed edge controls, or high availability.
-- CLI and dashboard coverage is substantial but not exhaustive.
-
-## Academic Positioning
-
-The project remains explainable as a data engineering academic MVP while presenting production-inspired practices: reproducibility, orchestration, validation, observability, typed configuration, cloud-ready interfaces, CI, and documentation.
+- Realtime analysis depends on the availability and completeness of the upstream GTFS-Realtime feed.
+- Matching relies on compatible GTFS and GTFS-Realtime trip identifiers.
+- When `start_date` is absent, the Europe/Paris observation date is used as the service-date fallback.
+- Missing realtime observations remain `UNKNOWN` rather than being inferred as cancellations.
+- Results depend on the duration and cadence of collected snapshots.
+- Local execution uses DuckDB and Docker Compose; Airflow state is stored in SQLite.

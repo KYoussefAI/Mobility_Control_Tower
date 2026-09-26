@@ -1,28 +1,97 @@
-unit_tests:
-  - name: int_service_dates_calendar_exceptions
-    model: int_service_dates
-    given:
-      - input: ref('stg_calendar')
-        rows:
-          - {service_id: "WK", monday: "1", tuesday: "1", wednesday: "0", thursday: "0", friday: "0", saturday: "0", sunday: "0", start_date: "20260105", end_date: "20260106"}
-      - input: ref('stg_calendar_dates')
-        rows:
-          - {service_id: "WK", date: "20260106", exception_type: "2"}
-          - {service_id: "WK", date: "20260107", exception_type: "1"}
-          - {service_id: "SPECIAL", date: "20260108", exception_type: "1"}
-    expect:
-      rows:
-        - {service_id: "SPECIAL", service_date: "2026-01-08"}
-        - {service_id: "WK", service_date: "2026-01-05"}
-        - {service_id: "WK", service_date: "2026-01-07"}
+version: 2
 
-  - name: int_first_trip_departures_keeps_after_midnight_hour
-    model: int_first_trip_departures
+unit_tests:
+  - name: service_date_fallback_uses_paris_local_date
+    description: A missing GTFS-RT start_date falls back to the Europe/Paris observation date.
+    model: int_delay_observations
     given:
+      - input: ref('stg_realtime_updates')
+        format: sql
+        rows: |
+          select
+              'snapshot-midnight'::varchar as snapshot_id,
+              timestamptz '2026-01-01 23:30:00+00' as collected_at,
+              null::date as service_date,
+              'entity-1'::varchar as entity_id,
+              'T1'::varchar as trip_id,
+              'R1'::varchar as route_id,
+              'S1'::varchar as stop_id,
+              1::integer as stop_sequence,
+              0::integer as observed_delay,
+              'SCHEDULED'::varchar as schedule_relationship
+      - input: ref('stg_trips')
+        format: sql
+        rows: |
+          select 'T1'::varchar as trip_id, 'R1'::varchar as route_id
+      - input: ref('stg_routes')
+        format: sql
+        rows: |
+          select
+              'R1'::varchar as route_id,
+              'A'::varchar as route_short_name,
+              'Airport'::varchar as route_long_name
       - input: ref('stg_stop_times')
-        rows:
-          - {trip_id: "T1", stop_id: "S1", stop_sequence: 1, departure_time: "25:10:00", departure_time_seconds: 90600}
-          - {trip_id: "T1", stop_id: "S2", stop_sequence: 2, departure_time: "25:20:00", departure_time_seconds: 91200}
+        format: sql
+        rows: |
+          select
+              'T1'::varchar as trip_id,
+              1::integer as stop_sequence,
+              84600::integer as departure_seconds
     expect:
+      format: dict
       rows:
-        - {trip_id: "T1", stop_id: "S1", departure_hour: 25}
+        - {snapshot_id: snapshot-midnight, service_date: '2026-01-02'}
+
+  - name: delay_quality_status_respects_sanity_boundary
+    description: Delays at exactly +/-7200 seconds remain valid while missing and beyond-boundary values are classified.
+    model: int_delay_observations
+    given:
+      - input: ref('stg_realtime_updates')
+        format: sql
+        rows: |
+          select
+              'snapshot-boundary'::varchar as snapshot_id,
+              timestamptz '2026-01-01 12:00:00+00' as collected_at,
+              date '2026-01-01' as service_date,
+              test_case.entity_id::varchar as entity_id,
+              'T1'::varchar as trip_id,
+              'R1'::varchar as route_id,
+              'S1'::varchar as stop_id,
+              test_case.stop_sequence::integer as stop_sequence,
+              test_case.observed_delay::integer as observed_delay,
+              'SCHEDULED'::varchar as schedule_relationship
+          from (
+              values
+                  ('missing', 1, null::integer),
+                  ('negative-out', 2, -7201),
+                  ('negative-edge', 3, -7200),
+                  ('positive-edge', 4, 7200),
+                  ('positive-out', 5, 7201)
+          ) as test_case(entity_id, stop_sequence, observed_delay)
+      - input: ref('stg_trips')
+        format: sql
+        rows: |
+          select 'T1'::varchar as trip_id, 'R1'::varchar as route_id
+      - input: ref('stg_routes')
+        format: sql
+        rows: |
+          select
+              'R1'::varchar as route_id,
+              'A'::varchar as route_short_name,
+              'Airport'::varchar as route_long_name
+      - input: ref('stg_stop_times')
+        format: sql
+        rows: |
+          select
+              'T1'::varchar as trip_id,
+              stop_sequence::integer as stop_sequence,
+              43200::integer as departure_seconds
+          from range(1, 6) as stop_times(stop_sequence)
+    expect:
+      format: dict
+      rows:
+        - {entity_id: missing, delay_seconds: null, has_known_delay: false, delay_quality_status: MISSING}
+        - {entity_id: negative-out, delay_seconds: -7201, has_known_delay: false, delay_quality_status: OUT_OF_RANGE}
+        - {entity_id: negative-edge, delay_seconds: -7200, has_known_delay: true, delay_quality_status: VALID}
+        - {entity_id: positive-edge, delay_seconds: 7200, has_known_delay: true, delay_quality_status: VALID}
+        - {entity_id: positive-out, delay_seconds: 7201, has_known_delay: false, delay_quality_status: OUT_OF_RANGE}

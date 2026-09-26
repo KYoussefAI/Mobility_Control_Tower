@@ -1,21 +1,22 @@
 name: mobility_control_tower
-version: "1.0.0"
+version: "0.1.0"
 config-version: 2
-
 profile: mobility_control_tower
 
 model-paths: ["models"]
-macro-paths: ["macros"]
 test-paths: ["tests"]
-snapshot-paths: ["snapshots"]
-seed-paths: ["seeds"]
-
-target-path: "target"
-clean-targets: ["target", "dbt_packages"]
+target-path: target
+clean-targets: [target, dbt_packages]
 
 vars:
-  silver_run: "../data/fixtures/silver/tisseo/phase1"
-  history_run: "../data/fixtures/realtime_history/tisseo/trip_updates"
+  static_path: ../data/silver/static/fixture
+  realtime_path: ../data/silver/realtime
+  on_time_early_seconds: -60
+  on_time_late_seconds: 300
+  max_abs_delay_seconds: 7200
+  min_reliable_sample_size: 5
+  fresh_realtime_seconds: 90
+  stale_realtime_seconds: 300
 
 models:
   mobility_control_tower:
