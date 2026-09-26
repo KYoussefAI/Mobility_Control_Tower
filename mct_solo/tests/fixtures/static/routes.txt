@@ -1,4 +1,0 @@
-route_id,agency_id,route_short_name,route_long_name,route_type
-R1,TIS,A,Aéroport - Centre,3
-R2,TIS,B,Gare - Université,3
-

@@ -1,5 +1,0 @@
-stop_id,stop_name,stop_lat,stop_lon
-S1,Aéroport,43.6293,1.3638
-S2,Capitole,43.6044,1.4437
-S3,Université,43.5601,1.4637
-
