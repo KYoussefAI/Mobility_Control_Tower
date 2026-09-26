@@ -10,21 +10,13 @@ Published schedules describe planned service, while collected TripUpdates descri
 
 ## Architecture
 
-```mermaid
-flowchart LR
-    A[Tisséo GTFS ZIP] --> B[Python ingestion]
-    R[Tisséo GTFS-RT TripUpdates] --> B
-    B --> C[Raw source payloads and metadata]
-    C --> D[Bronze GTFS text]
-    D --> E[Silver typed Parquet]
-    C --> E
-    E --> F[dbt staging and intermediate models]
-    F --> G[dbt marts in DuckDB]
-    G --> H[Streamlit dashboard]
-    I[Airflow] -. orchestrates .-> B
-    J[pytest and dbt tests] -. validates .-> E
-    J -. validates .-> F
-```
+<p align="center">
+  <a href="docs/images/architecture.png">
+    <img src="docs/images/architecture.png"
+         alt="Mobility Control Tower architecture"
+         width="1200">
+  </a>
+</p>
 
 Python owns collection, source preservation, parsing, Raw, Bronze, Silver, and pre-analytics validation. dbt owns analytical transformations, metric definitions, tests, and marts. DuckDB is the analytical database and dashboard source. See [Architecture](docs/architecture.md) for component boundaries.
 
