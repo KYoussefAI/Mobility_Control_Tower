@@ -46,7 +46,7 @@ def _save_barh(frame: pd.DataFrame, label_column: str, value_column: str, title:
 
 
 def generate_static_charts(gold_run: Path, reports_dir: Path = Path("data/reports")) -> Path:
-    """Create static PNG charts for a Gold run."""
+    """Create teacher-friendly static PNG charts for a gold run."""
     if not gold_run.is_dir():
         raise FileNotFoundError(f"Gold run directory not found: {gold_run}")
     run_id = gold_run.name

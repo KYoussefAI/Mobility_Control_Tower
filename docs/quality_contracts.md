@@ -21,3 +21,5 @@ quality_contracts/validation_results/
 quality_contracts/data_docs/local_site/index.html
 data/quality/latest_validation_summary.json
 ```
+
+The dashboard Data Quality page reads the latest summary through the API.

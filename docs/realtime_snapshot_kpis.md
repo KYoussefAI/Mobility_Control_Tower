@@ -46,6 +46,8 @@ This is not route reliability. It is only delay observed in one snapshot.
 
 A single snapshot cannot prove recurring delay patterns, punctuality, cancellation behavior, or passenger waiting time. It can only show what was visible at one fetch time.
 
-## Relationship to historical reliability
+## What continuous reliability would need
 
-These files remain single-snapshot diagnostics. Historical and reliability marts use accumulated observations, explicit eligibility rules, and defined temporal grains elsewhere in the project; they do not change the limited interpretation of an individual snapshot output.
+Continuous reliability indicators would require repeated snapshots over time, stable scheduling of fetches, storage design, deduplication rules, temporal windows, stronger static/live matching, and clear definitions for delay, cancellation, and headway reliability.
+
+Those concerns are intentionally outside this snapshot-only phase.

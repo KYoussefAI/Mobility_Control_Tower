@@ -1,0 +1,14 @@
+﻿{
+    "api_live":  "live",
+    "api_ready":  "ready",
+    "canonical_static_count":  3,
+    "compat_static_count":  3,
+    "canonical_history_count":  2,
+    "compat_history_count":  2,
+    "serving_metric":  true,
+    "prometheus_ready":  200,
+    "prometheus_up_targets":  2,
+    "grafana_database":  "ok",
+    "grafana_datasource":  "prometheus",
+    "unversioned_mutation_status":  404
+}

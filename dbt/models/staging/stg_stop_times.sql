@@ -5,3 +5,4 @@ select
     cast(departure_time as varchar) as departure_time,
     try_cast(departure_time_seconds as integer) as departure_time_seconds
 from {{ silver_csv('stop_times') }}
+

@@ -40,7 +40,7 @@ def create_app(
     app = FastAPI(
         title="Mobility Control Tower API",
         description="Local API for bounded analytical reads and scoped incident operations.",
-        version="0.4.0",
+        version="1.0.0",
     )
 
     @app.middleware("http")

@@ -35,3 +35,4 @@ dbt/dbt_packages/**
 *.duckdb.wal
 *.pb
 *.zip
+Mobility_Control_Tower.pdf

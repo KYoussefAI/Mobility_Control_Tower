@@ -12,3 +12,4 @@ select
 from {{ ref('route_daily_trips') }}
 group by 1, 2, 3, 4
 order by total_scheduled_trips desc, route_id
+

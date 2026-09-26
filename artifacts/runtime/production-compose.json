@@ -1,0 +1,785 @@
+﻿{
+  "name": "mobility-control-tower-prod",
+  "networks": {
+    "default": {
+      "name": "mobility-control-tower-prod_default",
+      "ipam": {}
+    }
+  },
+  "services": {
+    "airflow-init": {
+      "profiles": [
+        "orchestration",
+        "demo",
+        "production"
+      ],
+      "build": {
+        "context": "D:\\wsl\\projects\\Mobility_Control_Tower",
+        "dockerfile": "Dockerfile"
+      },
+      "command": [
+        "airflow-init"
+      ],
+      "depends_on": {
+        "incident-migrate": {
+          "condition": "service_completed_successfully",
+          "required": true
+        },
+        "postgres": {
+          "condition": "service_healthy",
+          "required": true
+        }
+      },
+      "entrypoint": null,
+      "environment": {
+        "AIRFLOW_ADMIN_EMAIL": "admin@example.com",
+        "AIRFLOW_ADMIN_PASSWORD": "admin",
+        "AIRFLOW_ADMIN_USERNAME": "admin",
+        "AIRFLOW_HOME": "/app/airflow",
+        "AIRFLOW__CORE__EXECUTOR": "LocalExecutor",
+        "AIRFLOW__CORE__LOAD_EXAMPLES": "false",
+        "AIRFLOW__DATABASE__SQL_ALCHEMY_CONN": "postgresql+psycopg2://mct_airflow:mct_airflow_demo@postgres:5432/airflow",
+        "AIRFLOW__WEBSERVER__SECRET_KEY": "local-demo-secret-key",
+        "MCT_COLLECTION_INTERVAL_SECONDS": "60",
+        "MCT_GTFS_SOURCE": "tisseo",
+        "MCT_HISTORY_ROOT": "/app/data/realtime_history",
+        "MCT_INCIDENT_BACKEND": "postgres",
+        "MCT_INCIDENT_DATABASE_URL": "postgresql://mct_app:mct_app_demo@postgres:5432/mct_app",
+        "MCT_LOG_FORMAT": "json",
+        "MCT_LOG_LEVEL": "INFO",
+        "MCT_QUALITY_ROOT": "/app/data/quality",
+        "MCT_REFRESH_INTERVAL_SECONDS": "600",
+        "MCT_SERVING_ROOT": "/app/data/serving",
+        "MCT_WATERMARK_ROOT": "/app/data/watermarks"
+      },
+      "image": "mobility-control-tower:local",
+      "networks": {
+        "default": null
+      },
+      "volumes": [
+        {
+          "type": "volume",
+          "source": "mct-data",
+          "target": "/app/data",
+          "volume": {}
+        },
+        {
+          "type": "volume",
+          "source": "airflow-metadata",
+          "target": "/app/airflow",
+          "volume": {}
+        },
+        {
+          "type": "bind",
+          "source": "D:\\wsl\\projects\\Mobility_Control_Tower\\airflow\\dags",
+          "target": "/app/airflow/dags",
+          "read_only": true,
+          "bind": {}
+        },
+        {
+          "type": "bind",
+          "source": "D:\\wsl\\projects\\Mobility_Control_Tower\\config",
+          "target": "/app/config",
+          "read_only": true,
+          "bind": {}
+        }
+      ]
+    },
+    "airflow-scheduler": {
+      "profiles": [
+        "orchestration",
+        "demo",
+        "production"
+      ],
+      "build": {
+        "context": "D:\\wsl\\projects\\Mobility_Control_Tower",
+        "dockerfile": "Dockerfile"
+      },
+      "command": [
+        "airflow-scheduler"
+      ],
+      "depends_on": {
+        "airflow-init": {
+          "condition": "service_completed_successfully",
+          "required": true
+        }
+      },
+      "entrypoint": null,
+      "environment": {
+        "AIRFLOW_ADMIN_EMAIL": "admin@example.com",
+        "AIRFLOW_ADMIN_PASSWORD": "admin",
+        "AIRFLOW_ADMIN_USERNAME": "admin",
+        "AIRFLOW_HOME": "/app/airflow",
+        "AIRFLOW__CORE__EXECUTOR": "LocalExecutor",
+        "AIRFLOW__CORE__LOAD_EXAMPLES": "false",
+        "AIRFLOW__DATABASE__SQL_ALCHEMY_CONN": "postgresql+psycopg2://mct_airflow:mct_airflow_demo@postgres:5432/airflow",
+        "AIRFLOW__WEBSERVER__SECRET_KEY": "local-demo-secret-key",
+        "MCT_COLLECTION_INTERVAL_SECONDS": "60",
+        "MCT_GTFS_SOURCE": "tisseo",
+        "MCT_HISTORY_ROOT": "/app/data/realtime_history",
+        "MCT_INCIDENT_BACKEND": "postgres",
+        "MCT_INCIDENT_DATABASE_URL": "postgresql://mct_app:mct_app_demo@postgres:5432/mct_app",
+        "MCT_LOG_FORMAT": "json",
+        "MCT_LOG_LEVEL": "INFO",
+        "MCT_QUALITY_ROOT": "/app/data/quality",
+        "MCT_REFRESH_INTERVAL_SECONDS": "600",
+        "MCT_SERVING_ROOT": "/app/data/serving",
+        "MCT_WATERMARK_ROOT": "/app/data/watermarks"
+      },
+      "healthcheck": {
+        "test": [
+          "CMD-SHELL",
+          "airflow jobs check --job-type SchedulerJob --hostname \"$${HOSTNAME}\""
+        ],
+        "timeout": "10s",
+        "interval": "30s",
+        "retries": 10
+      },
+      "image": "mobility-control-tower:local",
+      "networks": {
+        "default": null
+      },
+      "restart": "unless-stopped",
+      "volumes": [
+        {
+          "type": "volume",
+          "source": "mct-data",
+          "target": "/app/data",
+          "volume": {}
+        },
+        {
+          "type": "volume",
+          "source": "airflow-metadata",
+          "target": "/app/airflow",
+          "volume": {}
+        },
+        {
+          "type": "bind",
+          "source": "D:\\wsl\\projects\\Mobility_Control_Tower\\airflow\\dags",
+          "target": "/app/airflow/dags",
+          "read_only": true,
+          "bind": {}
+        },
+        {
+          "type": "bind",
+          "source": "D:\\wsl\\projects\\Mobility_Control_Tower\\config",
+          "target": "/app/config",
+          "read_only": true,
+          "bind": {}
+        }
+      ]
+    },
+    "airflow-webserver": {
+      "profiles": [
+        "orchestration",
+        "demo",
+        "production"
+      ],
+      "build": {
+        "context": "D:\\wsl\\projects\\Mobility_Control_Tower",
+        "dockerfile": "Dockerfile"
+      },
+      "command": [
+        "airflow-webserver"
+      ],
+      "depends_on": {
+        "airflow-init": {
+          "condition": "service_completed_successfully",
+          "required": true
+        }
+      },
+      "entrypoint": null,
+      "environment": {
+        "AIRFLOW_ADMIN_EMAIL": "admin@example.com",
+        "AIRFLOW_ADMIN_PASSWORD": "admin",
+        "AIRFLOW_ADMIN_USERNAME": "admin",
+        "AIRFLOW_HOME": "/app/airflow",
+        "AIRFLOW__CORE__EXECUTOR": "LocalExecutor",
+        "AIRFLOW__CORE__LOAD_EXAMPLES": "false",
+        "AIRFLOW__DATABASE__SQL_ALCHEMY_CONN": "postgresql+psycopg2://mct_airflow:mct_airflow_demo@postgres:5432/airflow",
+        "AIRFLOW__WEBSERVER__SECRET_KEY": "local-demo-secret-key",
+        "MCT_AIRFLOW_PORT": "8080",
+        "MCT_COLLECTION_INTERVAL_SECONDS": "60",
+        "MCT_GTFS_SOURCE": "tisseo",
+        "MCT_HISTORY_ROOT": "/app/data/realtime_history",
+        "MCT_INCIDENT_BACKEND": "postgres",
+        "MCT_INCIDENT_DATABASE_URL": "postgresql://mct_app:mct_app_demo@postgres:5432/mct_app",
+        "MCT_LOG_FORMAT": "json",
+        "MCT_LOG_LEVEL": "INFO",
+        "MCT_QUALITY_ROOT": "/app/data/quality",
+        "MCT_REFRESH_INTERVAL_SECONDS": "600",
+        "MCT_SERVING_ROOT": "/app/data/serving",
+        "MCT_WATERMARK_ROOT": "/app/data/watermarks"
+      },
+      "healthcheck": {
+        "test": [
+          "CMD-SHELL",
+          "curl -fsS http://127.0.0.1:8080/health | grep -q 'healthy'"
+        ],
+        "timeout": "5s",
+        "interval": "15s",
+        "retries": 20
+      },
+      "image": "mobility-control-tower:local",
+      "networks": {
+        "default": null
+      },
+      "restart": "unless-stopped",
+      "volumes": [
+        {
+          "type": "volume",
+          "source": "mct-data",
+          "target": "/app/data",
+          "volume": {}
+        },
+        {
+          "type": "volume",
+          "source": "airflow-metadata",
+          "target": "/app/airflow",
+          "volume": {}
+        },
+        {
+          "type": "bind",
+          "source": "D:\\wsl\\projects\\Mobility_Control_Tower\\airflow\\dags",
+          "target": "/app/airflow/dags",
+          "read_only": true,
+          "bind": {}
+        },
+        {
+          "type": "bind",
+          "source": "D:\\wsl\\projects\\Mobility_Control_Tower\\config",
+          "target": "/app/config",
+          "read_only": true,
+          "bind": {}
+        }
+      ]
+    },
+    "api": {
+      "profiles": [
+        "core",
+        "demo",
+        "production"
+      ],
+      "build": {
+        "context": "D:\\wsl\\projects\\Mobility_Control_Tower",
+        "dockerfile": "Dockerfile"
+      },
+      "command": [
+        "api"
+      ],
+      "depends_on": {
+        "incident-migrate": {
+          "condition": "service_completed_successfully",
+          "required": true
+        }
+      },
+      "entrypoint": null,
+      "environment": {
+        "MCT_API_PORT": "8000",
+        "MCT_AUTH_SECRET": "ci-production-placeholder-secret",
+        "MCT_CORS_ALLOWED_ORIGINS": "https://mct.example.test",
+        "MCT_ENV": "production",
+        "MCT_GTFS_SOURCE": "tisseo",
+        "MCT_HISTORY_ROOT": "/app/data/realtime_history",
+        "MCT_INCIDENT_BACKEND": "postgres",
+        "MCT_INCIDENT_DATABASE_URL": "postgresql://mct_app:mct_app_demo@postgres:5432/mct_app",
+        "MCT_LOG_FORMAT": "json",
+        "MCT_LOG_LEVEL": "INFO",
+        "MCT_QUALITY_ROOT": "/app/data/quality",
+        "MCT_SERVING_ROOT": "/app/data/serving",
+        "MCT_STRICT_READINESS": "true",
+        "MCT_WATERMARK_ROOT": "/app/data/watermarks"
+      },
+      "healthcheck": {
+        "test": [
+          "CMD-SHELL",
+          "curl -fsS http://127.0.0.1:8000/health/ready"
+        ],
+        "timeout": "5s",
+        "interval": "10s",
+        "retries": 30
+      },
+      "image": "mobility-control-tower:local",
+      "networks": {
+        "default": null
+      },
+      "restart": "unless-stopped",
+      "volumes": [
+        {
+          "type": "volume",
+          "source": "mct-data",
+          "target": "/app/data",
+          "volume": {}
+        },
+        {
+          "type": "bind",
+          "source": "D:\\wsl\\projects\\Mobility_Control_Tower\\config",
+          "target": "/app/config",
+          "read_only": true,
+          "bind": {}
+        }
+      ]
+    },
+    "dashboard": {
+      "profiles": [
+        "core",
+        "demo",
+        "production"
+      ],
+      "build": {
+        "context": "D:\\wsl\\projects\\Mobility_Control_Tower",
+        "dockerfile": "Dockerfile"
+      },
+      "command": [
+        "dashboard"
+      ],
+      "depends_on": {
+        "api": {
+          "condition": "service_healthy",
+          "required": true
+        }
+      },
+      "entrypoint": null,
+      "environment": {
+        "MCT_API_URL": "https://mct.example.test",
+        "MCT_DASHBOARD_PORT": "8501",
+        "MCT_ENV": "production",
+        "MCT_GTFS_SOURCE": "tisseo",
+        "MCT_HISTORY_ROOT": "/app/data/realtime_history",
+        "MCT_INCIDENT_BACKEND": "postgres",
+        "MCT_INCIDENT_DATABASE_URL": "postgresql://mct_app:mct_app_demo@postgres:5432/mct_app",
+        "MCT_LOG_FORMAT": "json",
+        "MCT_LOG_LEVEL": "INFO",
+        "MCT_QUALITY_ROOT": "/app/data/quality",
+        "MCT_SERVING_ROOT": "/app/data/serving",
+        "MCT_STRICT_READINESS": "true",
+        "MCT_WATERMARK_ROOT": "/app/data/watermarks"
+      },
+      "healthcheck": {
+        "test": [
+          "CMD-SHELL",
+          "curl -fsS http://127.0.0.1:8501/_stcore/health"
+        ],
+        "timeout": "5s",
+        "interval": "15s",
+        "retries": 20
+      },
+      "image": "mobility-control-tower:local",
+      "networks": {
+        "default": null
+      },
+      "restart": "unless-stopped",
+      "volumes": [
+        {
+          "type": "volume",
+          "source": "mct-data",
+          "target": "/app/data",
+          "volume": {}
+        },
+        {
+          "type": "bind",
+          "source": "D:\\wsl\\projects\\Mobility_Control_Tower\\config",
+          "target": "/app/config",
+          "read_only": true,
+          "bind": {}
+        }
+      ]
+    },
+    "grafana": {
+      "profiles": [
+        "observability",
+        "demo",
+        "production"
+      ],
+      "command": null,
+      "depends_on": {
+        "prometheus": {
+          "condition": "service_healthy",
+          "required": true
+        }
+      },
+      "entrypoint": null,
+      "environment": {
+        "GF_AUTH_ANONYMOUS_ENABLED": "false",
+        "GF_AUTH_ANONYMOUS_ORG_ROLE": "Viewer",
+        "GF_SECURITY_ADMIN_PASSWORD": "admin",
+        "GF_SECURITY_ADMIN_USER": "admin"
+      },
+      "healthcheck": {
+        "test": [
+          "CMD-SHELL",
+          "wget -qO- http://127.0.0.1:3000/api/health | grep -q 'ok'"
+        ],
+        "timeout": "5s",
+        "interval": "10s",
+        "retries": 20
+      },
+      "image": "grafana/grafana:11.2.0",
+      "networks": {
+        "default": null
+      },
+      "restart": "unless-stopped",
+      "volumes": [
+        {
+          "type": "volume",
+          "source": "grafana-data",
+          "target": "/var/lib/grafana",
+          "volume": {}
+        },
+        {
+          "type": "bind",
+          "source": "D:\\wsl\\projects\\Mobility_Control_Tower\\observability\\grafana\\provisioning",
+          "target": "/etc/grafana/provisioning",
+          "read_only": true,
+          "bind": {}
+        },
+        {
+          "type": "bind",
+          "source": "D:\\wsl\\projects\\Mobility_Control_Tower\\observability\\grafana\\dashboards",
+          "target": "/var/lib/grafana/dashboards",
+          "read_only": true,
+          "bind": {}
+        }
+      ]
+    },
+    "incident-migrate": {
+      "profiles": [
+        "core",
+        "orchestration",
+        "observability",
+        "demo",
+        "production"
+      ],
+      "build": {
+        "context": "D:\\wsl\\projects\\Mobility_Control_Tower",
+        "dockerfile": "Dockerfile"
+      },
+      "command": [
+        "incident-migrate"
+      ],
+      "depends_on": {
+        "postgres": {
+          "condition": "service_healthy",
+          "required": true
+        }
+      },
+      "entrypoint": null,
+      "environment": {
+        "MCT_GTFS_SOURCE": "tisseo",
+        "MCT_HISTORY_ROOT": "/app/data/realtime_history",
+        "MCT_INCIDENT_BACKEND": "postgres",
+        "MCT_INCIDENT_DATABASE_URL": "postgresql://mct_app:mct_app_demo@postgres:5432/mct_app",
+        "MCT_LOG_FORMAT": "json",
+        "MCT_LOG_LEVEL": "INFO",
+        "MCT_QUALITY_ROOT": "/app/data/quality",
+        "MCT_SERVING_ROOT": "/app/data/serving",
+        "MCT_STRICT_READINESS": "true",
+        "MCT_WATERMARK_ROOT": "/app/data/watermarks"
+      },
+      "image": "mobility-control-tower:local",
+      "networks": {
+        "default": null
+      },
+      "volumes": [
+        {
+          "type": "volume",
+          "source": "mct-data",
+          "target": "/app/data",
+          "volume": {}
+        },
+        {
+          "type": "bind",
+          "source": "D:\\wsl\\projects\\Mobility_Control_Tower\\config",
+          "target": "/app/config",
+          "read_only": true,
+          "bind": {}
+        }
+      ]
+    },
+    "metrics-exporter": {
+      "profiles": [
+        "observability",
+        "demo",
+        "production"
+      ],
+      "build": {
+        "context": "D:\\wsl\\projects\\Mobility_Control_Tower",
+        "dockerfile": "Dockerfile"
+      },
+      "command": [
+        "metrics-exporter"
+      ],
+      "depends_on": {
+        "incident-migrate": {
+          "condition": "service_completed_successfully",
+          "required": true
+        }
+      },
+      "entrypoint": null,
+      "environment": {
+        "MCT_GTFS_SOURCE": "tisseo",
+        "MCT_HISTORY_ROOT": "/app/data/realtime_history",
+        "MCT_INCIDENT_BACKEND": "postgres",
+        "MCT_INCIDENT_DATABASE_URL": "postgresql://mct_app:mct_app_demo@postgres:5432/mct_app",
+        "MCT_LOG_FORMAT": "json",
+        "MCT_LOG_LEVEL": "INFO",
+        "MCT_METRICS_PORT": "9108",
+        "MCT_QUALITY_ROOT": "/app/data/quality",
+        "MCT_SERVING_ROOT": "/app/data/serving",
+        "MCT_STRICT_READINESS": "true",
+        "MCT_WATERMARK_ROOT": "/app/data/watermarks"
+      },
+      "healthcheck": {
+        "test": [
+          "CMD-SHELL",
+          "curl -fsS http://127.0.0.1:9108/metrics | grep -q '^mct_serving_artifact_ready'"
+        ],
+        "timeout": "5s",
+        "interval": "10s",
+        "retries": 20
+      },
+      "image": "mobility-control-tower:local",
+      "networks": {
+        "default": null
+      },
+      "restart": "unless-stopped",
+      "volumes": [
+        {
+          "type": "volume",
+          "source": "mct-data",
+          "target": "/app/data",
+          "volume": {}
+        },
+        {
+          "type": "bind",
+          "source": "D:\\wsl\\projects\\Mobility_Control_Tower\\config",
+          "target": "/app/config",
+          "read_only": true,
+          "bind": {}
+        }
+      ]
+    },
+    "postgres": {
+      "profiles": [
+        "core",
+        "orchestration",
+        "demo",
+        "production"
+      ],
+      "command": null,
+      "entrypoint": null,
+      "environment": {
+        "MCT_DB_NAME": "mct_app",
+        "MCT_DB_PASSWORD": "mct_app_demo",
+        "MCT_DB_USER": "mct_app",
+        "POSTGRES_DB": "airflow",
+        "POSTGRES_PASSWORD": "mct_airflow_demo",
+        "POSTGRES_USER": "mct_airflow"
+      },
+      "healthcheck": {
+        "test": [
+          "CMD-SHELL",
+          "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"
+        ],
+        "timeout": "5s",
+        "interval": "5s",
+        "retries": 20
+      },
+      "image": "postgres:16.4-alpine",
+      "networks": {
+        "default": null
+      },
+      "restart": "unless-stopped",
+      "volumes": [
+        {
+          "type": "volume",
+          "source": "postgres-data",
+          "target": "/var/lib/postgresql/data",
+          "volume": {}
+        },
+        {
+          "type": "bind",
+          "source": "D:\\wsl\\projects\\Mobility_Control_Tower\\docker\\postgres-init",
+          "target": "/docker-entrypoint-initdb.d",
+          "read_only": true,
+          "bind": {}
+        }
+      ]
+    },
+    "prometheus": {
+      "profiles": [
+        "observability",
+        "demo",
+        "production"
+      ],
+      "command": [
+        "--config.file=/etc/prometheus/prometheus.yml",
+        "--web.enable-lifecycle"
+      ],
+      "depends_on": {
+        "api": {
+          "condition": "service_healthy",
+          "required": true
+        },
+        "metrics-exporter": {
+          "condition": "service_healthy",
+          "required": true
+        }
+      },
+      "entrypoint": null,
+      "healthcheck": {
+        "test": [
+          "CMD-SHELL",
+          "wget -qO- http://127.0.0.1:9090/-/ready \u003e/dev/null"
+        ],
+        "timeout": "5s",
+        "interval": "10s",
+        "retries": 20
+      },
+      "image": "prom/prometheus:v2.54.1",
+      "networks": {
+        "default": null
+      },
+      "restart": "unless-stopped",
+      "volumes": [
+        {
+          "type": "bind",
+          "source": "D:\\wsl\\projects\\Mobility_Control_Tower\\observability\\prometheus",
+          "target": "/etc/prometheus",
+          "read_only": true,
+          "bind": {}
+        },
+        {
+          "type": "volume",
+          "source": "prometheus-data",
+          "target": "/prometheus",
+          "volume": {}
+        }
+      ]
+    },
+    "reverse-proxy": {
+      "profiles": [
+        "production"
+      ],
+      "command": null,
+      "depends_on": {
+        "api": {
+          "condition": "service_healthy",
+          "required": true
+        },
+        "dashboard": {
+          "condition": "service_healthy",
+          "required": true
+        }
+      },
+      "entrypoint": null,
+      "environment": {
+        "MCT_PUBLIC_HOSTNAME": "mct.example.test"
+      },
+      "image": "caddy:2.8.4-alpine",
+      "networks": {
+        "default": null
+      },
+      "ports": [
+        {
+          "mode": "ingress",
+          "target": 80,
+          "published": "80",
+          "protocol": "tcp"
+        },
+        {
+          "mode": "ingress",
+          "target": 443,
+          "published": "443",
+          "protocol": "tcp"
+        }
+      ],
+      "restart": "unless-stopped",
+      "volumes": [
+        {
+          "type": "bind",
+          "source": "D:\\wsl\\projects\\Mobility_Control_Tower\\deploy\\Caddyfile",
+          "target": "/etc/caddy/Caddyfile",
+          "read_only": true,
+          "bind": {}
+        },
+        {
+          "type": "volume",
+          "source": "caddy-data",
+          "target": "/data",
+          "volume": {}
+        },
+        {
+          "type": "volume",
+          "source": "caddy-config",
+          "target": "/config",
+          "volume": {}
+        }
+      ]
+    }
+  },
+  "volumes": {
+    "airflow-metadata": {
+      "name": "mobility-control-tower-prod_airflow-metadata"
+    },
+    "caddy-config": {
+      "name": "mobility-control-tower-prod_caddy-config"
+    },
+    "caddy-data": {
+      "name": "mobility-control-tower-prod_caddy-data"
+    },
+    "grafana-data": {
+      "name": "mobility-control-tower-prod_grafana-data"
+    },
+    "mct-data": {
+      "name": "mobility-control-tower-prod_mct-data"
+    },
+    "postgres-data": {
+      "name": "mobility-control-tower-prod_postgres-data"
+    },
+    "prometheus-data": {
+      "name": "mobility-control-tower-prod_prometheus-data"
+    }
+  },
+  "x-airflow-env": {
+    "AIRFLOW_ADMIN_EMAIL": "admin@example.com",
+    "AIRFLOW_ADMIN_PASSWORD": "admin",
+    "AIRFLOW_ADMIN_USERNAME": "admin",
+    "AIRFLOW_HOME": "/app/airflow",
+    "AIRFLOW__CORE__EXECUTOR": "LocalExecutor",
+    "AIRFLOW__CORE__LOAD_EXAMPLES": "false",
+    "AIRFLOW__DATABASE__SQL_ALCHEMY_CONN": "postgresql+psycopg2://mct_airflow:mct_airflow_demo@postgres:5432/airflow",
+    "AIRFLOW__WEBSERVER__SECRET_KEY": "local-demo-secret-key",
+    "MCT_COLLECTION_INTERVAL_SECONDS": "60",
+    "MCT_GTFS_SOURCE": "tisseo",
+    "MCT_HISTORY_ROOT": "/app/data/realtime_history",
+    "MCT_INCIDENT_BACKEND": "postgres",
+    "MCT_INCIDENT_DATABASE_URL": "postgresql://mct_app:mct_app_demo@postgres:5432/mct_app",
+    "MCT_LOG_FORMAT": "json",
+    "MCT_LOG_LEVEL": "INFO",
+    "MCT_QUALITY_ROOT": "/app/data/quality",
+    "MCT_REFRESH_INTERVAL_SECONDS": "600",
+    "MCT_SERVING_ROOT": "/app/data/serving",
+    "MCT_WATERMARK_ROOT": "/app/data/watermarks"
+  },
+  "x-mct-app": {
+    "build": ".",
+    "environment": {
+      "MCT_GTFS_SOURCE": "tisseo",
+      "MCT_HISTORY_ROOT": "/app/data/realtime_history",
+      "MCT_INCIDENT_BACKEND": "postgres",
+      "MCT_INCIDENT_DATABASE_URL": "postgresql://mct_app:mct_app_demo@postgres:5432/mct_app",
+      "MCT_LOG_FORMAT": "json",
+      "MCT_LOG_LEVEL": "INFO",
+      "MCT_QUALITY_ROOT": "/app/data/quality",
+      "MCT_SERVING_ROOT": "/app/data/serving",
+      "MCT_STRICT_READINESS": "true",
+      "MCT_WATERMARK_ROOT": "/app/data/watermarks"
+    },
+    "image": "mobility-control-tower:local",
+    "volumes": [
+      "mct-data:/app/data",
+      "./config:/app/config:ro"
+    ]
+  }
+}

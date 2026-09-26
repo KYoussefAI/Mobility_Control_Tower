@@ -6,3 +6,4 @@ select
     row_number() over (order by scheduled_departures_count desc, service_date, stop_id)::integer as rank
 from {{ ref('stop_daily_departures') }}
 qualify rank <= 50
+

@@ -8,3 +8,4 @@ select
     round(60.0 / nullif(scheduled_departures_count, 0), 2) as planned_headway_minutes
 from {{ ref('route_hourly_departures') }}
 order by service_date, route_id, departure_hour
+

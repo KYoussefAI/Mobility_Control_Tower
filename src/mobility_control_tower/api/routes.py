@@ -310,10 +310,10 @@ def v1_resolve_incident(
     authorization: str | None = Header(default=None),
     payload: dict[str, Any] = JSON_BODY,
 ) -> dict[str, Any]:
+    operator = _operator(authorization, {"incidents:write"})
     reason = str(payload.get("reason") or "").strip()
     if not reason:
         raise HTTPException(status_code=422, detail="resolution reason is required")
-    operator = _operator(authorization, {"incidents:write"})
     _limit_operator_action(request, operator)
     row = IncidentStore().transition(incident_id, status="RESOLVED", operator=operator, note=reason)
     return {"data": [row], "count": 1, "source": "incidents", "notes": []}
@@ -326,13 +326,13 @@ def v1_suppress_incident(
     authorization: str | None = Header(default=None),
     payload: dict[str, Any] = JSON_BODY,
 ) -> dict[str, Any]:
+    operator = _operator(authorization, {"incidents:write"})
     reason = str(payload.get("reason") or "").strip()
     expires_at = str(payload.get("expires_at") or "").strip()
     if not reason:
         raise HTTPException(status_code=422, detail="suppression reason is required")
     if not expires_at:
         raise HTTPException(status_code=422, detail="suppression expiry is required")
-    operator = _operator(authorization, {"incidents:write"})
     _limit_operator_action(request, operator)
     try:
         row = IncidentStore().transition(incident_id, status="SUPPRESSED", operator=operator, note=reason, suppress_until=expires_at)

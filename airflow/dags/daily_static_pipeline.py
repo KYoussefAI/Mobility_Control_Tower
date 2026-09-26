@@ -36,6 +36,7 @@ def ingest_gtfs(**context):
             "--raw-root",
             cfg["raw_root"],
         ],
+        output_label="Raw GTFS preserved in",
         context=context,
     )
 
@@ -46,6 +47,7 @@ def profile_gtfs(**context):
     return run_cli_task(
         task_id="profile_gtfs",
         command_args=["profile-gtfs", "--raw-run", raw_run, "--reports-dir", cfg["reports_dir"]],
+        output_label="Markdown report written to",
         context=context,
     )
 
@@ -56,6 +58,7 @@ def build_bronze(**context):
     return run_cli_task(
         task_id="build_bronze",
         command_args=["build-bronze", "--raw-run", raw_run, "--bronze-root", cfg["bronze_root"]],
+        output_label="Bronze GTFS written to",
         context=context,
     )
 
@@ -66,6 +69,7 @@ def build_silver(**context):
     return run_cli_task(
         task_id="build_silver",
         command_args=["build-silver", "--bronze-run", bronze_run, "--silver-root", cfg["silver_root"]],
+        output_label="Silver GTFS written to",
         context=context,
     )
 
@@ -76,6 +80,7 @@ def validate_gtfs(**context):
     return run_cli_task(
         task_id="validate_gtfs",
         command_args=["validate-gtfs", "--silver-run", silver_run, "--reports-dir", cfg["reports_dir"]],
+        output_label="Markdown quality report written to",
         context=context,
     )
 
@@ -96,6 +101,7 @@ def run_dbt_models(**context):
             "--output-root",
             cfg["dbt_output_root"],
         ],
+        output_label="dbt gold output written to",
         context=context,
     )
     set_airflow_variable("mct_latest_static_silver_run", silver_run)
@@ -122,6 +128,7 @@ def validate_with_quality_contracts(**context):
             "--quality-root",
             cfg["quality_root"],
         ],
+        output_label="MCT quality validation written to",
         context=context,
     )
 
@@ -132,6 +139,7 @@ def generate_static_charts(**context):
     return run_cli_task(
         task_id="generate_static_charts",
         command_args=["generate-static-charts", "--gold-run", gold_run, "--reports-dir", cfg["reports_dir"]],
+        output_label="Static charts written to",
         context=context,
     )
 
@@ -142,6 +150,7 @@ def generate_demo_report(**context):
     return run_cli_task(
         task_id="generate_demo_report",
         command_args=["generate-demo-report", "--gold-run", gold_run, "--reports-dir", cfg["reports_dir"]],
+        output_label="Demo report written to",
         context=context,
     )
 
@@ -152,6 +161,7 @@ def build_serving_db(**context):
     return run_cli_task(
         task_id="build_serving_db",
         command_args=["build-serving-db", "--gold-run", gold_run, "--serving-root", cfg["serving_root"], "--quality-status", "passed"],
+        output_label="Serving database written to",
         context=context,
     )
 

@@ -4,3 +4,4 @@ select
     try_cast(stop_lat as double) as stop_lat,
     try_cast(stop_lon as double) as stop_lon
 from {{ silver_csv('stops') }}
+

@@ -1,0 +1,51 @@
+{
+  "airflow_version": "2.11.2",
+  "dag_list": [
+    {
+      "dag_id": "daily_platform_maintenance",
+      "fileloc": "/app/airflow/dags/daily_platform_maintenance.py",
+      "is_paused": "True",
+      "owners": [
+        "mobility-control-tower"
+      ]
+    },
+    {
+      "dag_id": "daily_static_pipeline",
+      "fileloc": "/app/airflow/dags/daily_static_pipeline.py",
+      "is_paused": "True",
+      "owners": [
+        "mobility-control-tower"
+      ]
+    },
+    {
+      "dag_id": "realtime_incremental_refresh",
+      "fileloc": "/app/airflow/dags/realtime_incremental_refresh.py",
+      "is_paused": "True",
+      "owners": [
+        "mobility-control-tower"
+      ]
+    },
+    {
+      "dag_id": "realtime_snapshot_collection",
+      "fileloc": "/app/airflow/dags/realtime_collection.py",
+      "is_paused": "True",
+      "owners": [
+        "mobility-control-tower"
+      ]
+    }
+  ],
+  "generated_at": "2026-08-23T14:35:36.980358+00:00",
+  "import_errors": [],
+  "missing_dags": [],
+  "realtime_incremental_refresh_order": {
+    "returncode": 0,
+    "stderr": "/opt/venv/lib/python3.10/site-packages/airflow/metrics/base_stats_logger.py:22 RemovedInAirflow3Warning: Timer and timing metrics publish in seconds were deprecated. It is enabled by default from Airflow 3 onwards. Enable timer_unit_consistency to publish all the timer and timing metrics in milliseconds.\n/opt/venv/lib/python3.10/site-packages/airflow/triggers/base.py:27 RemovedInAirflow3Warning: Timer and timing metrics publish in seconds were deprecated. It is enabled by default from Airflow 3 onwards. Enable timer_unit_consistency to publish all the timer and timing metrics in milliseconds.",
+    "stdout": "[2026-08-23T14:35:35.092+0000] {dagbag.py:588} INFO - Filling up the DagBag from /app/airflow/dags\n{'publish_serving_refresh'}"
+  },
+  "scheduler_health": {
+    "returncode": 0,
+    "stderr": "/opt/venv/lib/python3.10/site-packages/airflow/metrics/base_stats_logger.py:22 RemovedInAirflow3Warning: Timer and timing metrics publish in seconds were deprecated. It is enabled by default from Airflow 3 onwards. Enable timer_unit_consistency to publish all the timer and timing metrics in milliseconds.\n/opt/venv/lib/python3.10/site-packages/airflow/triggers/base.py:27 RemovedInAirflow3Warning: Timer and timing metrics publish in seconds were deprecated. It is enabled by default from Airflow 3 onwards. Enable timer_unit_consistency to publish all the timer and timing metrics in milliseconds.",
+    "stdout": "Found one alive job."
+  },
+  "status": "ok"
+}

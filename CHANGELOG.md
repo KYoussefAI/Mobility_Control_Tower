@@ -4,7 +4,12 @@ This changelog records delivered changes using semantic versioning.
 
 ## [Unreleased]
 
+
+## [1.0.0]
+
 - Add Toulouse and Rennes source profiles with typed local/S3 storage portability.
+- Add local lineage, benchmarking, diagnostics, and deterministic demo tooling.
+- Reconcile architecture, KPI, security, operations, portfolio, and release evidence.
 
 ## [0.4.0]
 

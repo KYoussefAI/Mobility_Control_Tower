@@ -1,0 +1,12 @@
+{
+  "source_id": "tisseo",
+  "source_name": "Tisséo — Réseau transport urbain toulousain",
+  "source_page_url": "https://transport.data.gouv.fr/datasets/tisseo-reseau-transport-urbain-toulousain",
+  "licence": "ODbL",
+  "ingestion_timestamp": "2026-07-17T15:52:46.053323+00:00",
+  "ingestion_method": "download",
+  "original_filename": "Tisseo_GTFS.zip",
+  "raw_filename": "Tisseo_GTFS.zip",
+  "file_size_bytes": 10087142,
+  "sha256": "763780699f794c71aa1d945f2f0005322fc5509ed72b06793a65ef51bf852b9d"
+}

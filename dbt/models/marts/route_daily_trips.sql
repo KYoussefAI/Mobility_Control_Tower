@@ -9,3 +9,4 @@ from {{ ref('int_service_dates') }} sd
 join {{ ref('int_trip_base') }} tb using (service_id)
 group by 1, 2, 3, 4, 5
 order by service_date, route_id
+

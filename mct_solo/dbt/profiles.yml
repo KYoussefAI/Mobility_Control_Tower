@@ -1,0 +1,8 @@
+mct_solo:
+  target: dev
+  outputs:
+    dev:
+      type: duckdb
+      path: "{{ env_var('MCT_DBT_DATABASE_PATH', '../data/mart/mobility_control_tower.duckdb') }}"
+      threads: 4
+

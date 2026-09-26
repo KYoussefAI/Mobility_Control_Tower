@@ -40,3 +40,4 @@ from (
     select * from added_service
 ) service
 anti join removed_service using (service_id, service_date)
+

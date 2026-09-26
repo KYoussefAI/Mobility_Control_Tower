@@ -1,1 +1,1 @@
-"""Local analytical reports."""
+"""Local teacher-friendly reports."""

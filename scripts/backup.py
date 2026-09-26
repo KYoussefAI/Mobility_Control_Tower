@@ -13,6 +13,7 @@ BACKUP_ITEMS = [
     Path("data/watermarks"),
     Path("data/serving"),
     Path("data/quality/latest_validation_summary.json"),
+    Path("data/lineage/status.json"),
 ]
 
 

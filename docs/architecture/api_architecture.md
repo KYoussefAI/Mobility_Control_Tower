@@ -10,3 +10,4 @@ flowchart LR
     DUCK --> HISTORY[Historical views]
     FASTAPI --> QUALITY[data/quality/latest_validation_summary.json]
 ```
+

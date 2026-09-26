@@ -1,0 +1,25 @@
+name: mct_solo
+version: "0.1.0"
+config-version: 2
+profile: mct_solo
+
+model-paths: ["models"]
+test-paths: ["tests"]
+target-path: target
+clean-targets: [target, dbt_packages]
+
+vars:
+  static_path: ../data/silver/static/fixture
+  realtime_path: ../data/silver/realtime
+  on_time_early_seconds: -60
+  on_time_late_seconds: 300
+  min_reliable_sample_size: 5
+
+models:
+  mct_solo:
+    staging:
+      +materialized: view
+    intermediate:
+      +materialized: view
+    marts:
+      +materialized: table

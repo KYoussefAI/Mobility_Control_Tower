@@ -1,4 +1,4 @@
-"""Generate a diagnostic report from realtime snapshot Gold tables."""
+"""Generate a teacher-facing report from real-time snapshot gold tables."""
 
 from __future__ import annotations
 
@@ -90,21 +90,21 @@ Delay uses `arrival_delay` when available, otherwise `departure_delay`. These ar
 
 ## 9. What this proves
 
-The project can turn a saved GTFS-Realtime snapshot into enriched diagnostic tables, feed health indicators, static/live compatibility evidence, delay indicators, and static analytical charts.
+The project can turn a saved GTFS-Realtime snapshot into enriched diagnostic tables, feed health indicators, static/live compatibility evidence, delay indicators, and teacher-friendly charts.
 
-## 10. What this report does not prove
+## 10. What it does not prove yet
 
 - It does not prove route reliability from a single snapshot.
 - It does not prove stable delay patterns over time.
 - It does not prove production readiness.
 
-## 11. Scope of this report
+## 11. Why this is still not streaming
 
-This report evaluates one saved `feed.pb` file at a time. It is not evidence of streaming processing or operational monitoring.
+The workflow processes one saved `feed.pb` file at a time. There is no scheduler, message broker, database, API, dashboard, or continuous real-time monitoring system.
 
-## 12. Interpretation
+## 12. Next project step
 
-Use the historical reliability marts to evaluate patterns across repeated observations; keep this report as per-snapshot diagnostic evidence.
+Collect a few saved snapshots at different times and compare feed freshness, identifier compatibility, and delay behavior before considering any streaming design.
 """
     reports_dir.mkdir(parents=True, exist_ok=True)
     output = reports_dir / f"realtime_snapshot_report_{run_id}.md"

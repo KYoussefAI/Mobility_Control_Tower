@@ -7,3 +7,4 @@ select
     r.route_type
 from {{ ref('stg_trips') }} t
 left join {{ ref('stg_routes') }} r using (route_id)
+

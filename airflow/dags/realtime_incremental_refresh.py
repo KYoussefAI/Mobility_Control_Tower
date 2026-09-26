@@ -54,6 +54,7 @@ def run_dbt_history(**context):
             "--output-root",
             cfg["dbt_output_root"],
         ],
+        output_label="dbt gold output written to",
         context=context,
     )
 
@@ -76,6 +77,7 @@ def validate_recent_quality(**context):
             "--quality-root",
             cfg["quality_root"],
         ],
+        output_label="MCT quality validation written to",
         context=context,
     )
 
@@ -101,6 +103,7 @@ def publish_serving_refresh(**context):
             "--quality-status",
             "passed",
         ],
+        output_label="Serving database written to",
         context=context,
     )
 
@@ -125,12 +128,25 @@ def advance_refresh_watermark(**context):
 
 
 def evaluate_reliability_incidents(**context):
-    pipeline_context()
+    cfg = pipeline_context()
     latest_snapshot = context["ti"].xcom_pull(task_ids="discover_new_snapshots", key="latest_snapshot")
-    f"{context.get('run_id', 'manual')}:{latest_snapshot.get('snapshot_id') if latest_snapshot else 'unknown'}"
+    correlation_id = f"{context.get('run_id', 'manual')}:{latest_snapshot.get('snapshot_id') if latest_snapshot else 'unknown'}"
     return run_cli_task(
         task_id="evaluate_reliability_incidents",
-        command_args=["evaluate-incidents"],
+        command_args=[
+            "evaluate-incidents",
+            "--source",
+            cfg["source"],
+            "--correlation-id",
+            correlation_id,
+            "--serving-root",
+            cfg["serving_root"],
+            "--history-root",
+            cfg["history_root"],
+            "--quality-root",
+            cfg["quality_root"],
+            "--json",
+        ],
         context=context,
     )
 

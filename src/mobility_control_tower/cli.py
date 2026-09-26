@@ -17,6 +17,7 @@ import uvicorn
 from mobility_control_tower.analytics_engineering import generate_dbt_docs, run_dbt, run_ge_validation, run_quality_validation, test_dbt
 from mobility_control_tower.api.app import create_app
 from mobility_control_tower.api.report import generate_api_report
+from mobility_control_tower.benchmarking import run_benchmarks
 from mobility_control_tower.config import load_source
 from mobility_control_tower.core.exceptions import cli_failure_message
 from mobility_control_tower.core.logging import configure_logging
@@ -175,6 +176,15 @@ def build_parser() -> argparse.ArgumentParser:
     ge_validation.add_argument("--quality-contracts-root", "--ge-root", dest="ge_root", type=Path, default=Path("quality_contracts"))
     ge_validation.add_argument("--quality-root", type=Path, default=Path("data/quality"))
 
+    benchmark = commands.add_parser("run-benchmarks", help="Run local performance benchmarks over existing artifacts")
+    benchmark.add_argument("--raw-run", type=Path)
+    benchmark.add_argument("--bronze-run", type=Path)
+    benchmark.add_argument("--silver-run", type=Path)
+    benchmark.add_argument("--gold-run", type=Path)
+    benchmark.add_argument("--history-run", type=Path)
+    benchmark.add_argument("--db", type=Path)
+    benchmark.add_argument("--output-dir", type=Path, default=Path("data/benchmarks"))
+
     serving = commands.add_parser("build-serving-db", help="Build a local DuckDB serving database from gold outputs")
     serving.add_argument("--gold-run", type=Path, required=True)
     serving.add_argument("--rt-gold-run", type=Path)
@@ -182,6 +192,7 @@ def build_parser() -> argparse.ArgumentParser:
     serving.add_argument("--history-run", type=Path)
     serving.add_argument("--history-gold-run", type=Path)
     serving.add_argument("--quality-status", default="unknown")
+    serving.add_argument("--serving-run-id")
 
     serving_query = commands.add_parser("query-serving-db", help="Run a predefined query against the serving DuckDB database")
     serving_query.add_argument("--db", type=Path, required=True)
@@ -375,14 +386,26 @@ def main() -> None:
             )
             _info(f"MCT quality validation written to: {result_path}")
             _info(f"Latest validation summary written to: {args.quality_root / 'latest_validation_summary.json'}")
+        elif args.command == "run-benchmarks":
+            report_path = run_benchmarks(
+                raw_run=args.raw_run,
+                bronze_run=args.bronze_run,
+                silver_run=args.silver_run,
+                gold_run=args.gold_run,
+                history_run=args.history_run,
+                db_path=args.db,
+                output_dir=args.output_dir,
+            )
+            _info(f"Benchmark report written to: {report_path}")
         elif args.command == "build-serving-db":
             serving_run = build_serving_database(
                 args.gold_run,
-                serving_root=args.serving_root,
-                quality_status=args.quality_status,
-                rt_gold_run=args.rt_gold_run,
+                args.rt_gold_run,
+                args.serving_root,
                 history_run=args.history_run,
                 history_gold_run=args.history_gold_run,
+                quality_status=args.quality_status,
+                serving_run_id=args.serving_run_id,
             )
             _info(f"Serving database written to: {serving_run / 'mobility_control_tower.duckdb'}")
             _info(f"Manifest written to: {serving_run / 'serving_manifest.json'}")

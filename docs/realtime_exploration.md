@@ -40,7 +40,7 @@ The real-time gold layer combines one parsed Trip Updates snapshot with the stat
 - route delay snapshot indicators;
 - stop delay snapshot indicators;
 - identifier compatibility percentages;
-- static PNG charts and a concise technical Markdown report.
+- static PNG charts and a teacher-facing Markdown report.
 
 These are snapshot indicators observed at fetch time, not continuous real-time reliability metrics.
 

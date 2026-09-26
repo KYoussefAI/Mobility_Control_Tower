@@ -3,3 +3,4 @@ select
     cast(route_id as varchar) as route_id,
     cast(service_id as varchar) as service_id
 from {{ silver_csv('trips') }}
+

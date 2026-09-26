@@ -10,3 +10,4 @@ left join {{ ref('stg_stops') }} s using (stop_id)
 where coalesce(st.departure_time, '') <> ''
 group by 1, 2, 3
 order by service_date, stop_id
+

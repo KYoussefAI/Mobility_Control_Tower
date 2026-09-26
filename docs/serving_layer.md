@@ -6,7 +6,7 @@ A serving layer is the place where generated data products become easy to query.
 
 ## Why CSV files alone are not ideal
 
-CSV files are transparent interchange artifacts, but analysis across several files quickly becomes cumbersome. SQL views provide a stable query interface for comparing indicators without requiring consumers to coordinate file-level joins.
+CSV files are simple and transparent, but analysis across several CSV files quickly becomes inconvenient. SQL views make it easier to demonstrate the project, compare indicators, and answer teacher questions without manually opening many files.
 
 ## Why DuckDB is used locally
 

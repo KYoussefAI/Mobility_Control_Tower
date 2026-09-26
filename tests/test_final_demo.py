@@ -100,9 +100,18 @@ def test_final_report_generation_and_cli_registration(tmp_path: Path) -> None:
 
 
 def test_final_docs_readme_and_dashboard_are_presentation_ready() -> None:
-    required_docs = [Path("docs/final_demo_guide.md")]
+    required_docs = [
+        Path("docs/final_demo_guide.md"),
+        Path("docs/teacher_presentation_notes.md"),
+        Path("docs/project_summary.md"),
+    ]
     for doc in required_docs:
         assert doc.is_file()
+
+    readme = Path("README.md").read_text(encoding="utf-8")
+    assert "Architecture Overview" in readme
+    assert "Dashboard Usage" in readme
+    assert "Academic Positioning" in readme
 
     dashboard = Path("src/mobility_control_tower/dashboard/app.py").read_text(encoding="utf-8")
     forbidden_write_actions = ["st.file_uploader", "st.download_button", "requests.post", "requests.delete", "requests.put"]

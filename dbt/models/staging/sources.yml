@@ -14,3 +14,4 @@ sources:
     tables:
       - name: feed_summary
         description: Feed-level metadata for each preserved realtime snapshot.
+

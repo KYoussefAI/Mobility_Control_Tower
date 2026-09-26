@@ -162,9 +162,15 @@ The project can reproducibly transform a published transport archive into valida
 
 ## 13. What it does not prove yet
 
-- These KPIs describe the published schedule, not observed operations.
+- These are static planning KPIs, not real-time reliability KPIs.
+- They count scheduled trips and scheduled departures, not actual trips.
 - Planned headway approximation is not real passenger waiting time.
 - Frequency-based service is not expanded.
+- There is intentionally no API, database, dashboard, streaming system, or orchestration layer yet.
+
+## 14. Next project step
+
+Use these static planning KPIs as the baseline for the next bounded project phase. Real-time data can later compare observed service against this planned schedule.
 """
     reports_dir.mkdir(parents=True, exist_ok=True)
     output = reports_dir / f"mobility_demo_{run_id}.md"

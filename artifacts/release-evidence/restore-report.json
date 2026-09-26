@@ -1,0 +1,108 @@
+{
+  "api_incident_status": 200,
+  "api_ready_status": 200,
+  "backend": "postgres",
+  "backup_file": "artifacts/runtime/incident-postgres-backup.json",
+  "counts_after": {
+    "incident_evaluation_runs": 4,
+    "incident_events": 15,
+    "incidents": 6,
+    "schema_versions": 1
+  },
+  "counts_before": {
+    "incident_evaluation_runs": 4,
+    "incident_events": 15,
+    "incidents": 6,
+    "schema_versions": 1
+  },
+  "evaluation_after_restore": {
+    "candidate_count": 10,
+    "correlation_id": "restore-proof",
+    "dry_run": false,
+    "error_summary": null,
+    "escalated_count": 0,
+    "evaluation_run_id": "eval_2ac1dc2a0dde4a85",
+    "opened_count": 2,
+    "reopened_count": 1,
+    "resolved_count": 0,
+    "rule_versions": {
+      "blocking_quality_failure": "quality_failure_v1",
+      "low_realtime_coverage": "low_coverage_v1",
+      "severe_service_gap": "service_gap_v1",
+      "stale_feed": "stale_feed_v1",
+      "stale_serving_artifact": "stale_serving_v1"
+    },
+    "serving_run_id": null,
+    "skipped_count": 6,
+    "source_filter": null,
+    "status": "SUCCESS",
+    "suppressed_count": 0,
+    "transitions": [
+      {
+        "action": "skipped",
+        "candidate_key": "stale_feed:star_rennes:trip_updates",
+        "event_type": null,
+        "incident_id": null
+      },
+      {
+        "action": "skipped",
+        "candidate_key": "stale_feed:star_rennes:vehicle_positions",
+        "event_type": null,
+        "incident_id": null
+      },
+      {
+        "action": "skipped",
+        "candidate_key": "stale_feed:star_rennes:service_alerts",
+        "event_type": null,
+        "incident_id": null
+      },
+      {
+        "action": "skipped",
+        "candidate_key": "stale_serving:star_rennes",
+        "event_type": null,
+        "incident_id": "inc_c9c6854338e20ed2"
+      },
+      {
+        "action": "opened",
+        "candidate_key": "quality_failure:star_rennes:all",
+        "event_type": "OPENED",
+        "incident_id": "inc_3a242fde8892ce91"
+      },
+      {
+        "action": "updated",
+        "candidate_key": "stale_feed:tisseo:trip_updates",
+        "event_type": null,
+        "incident_id": "demo-ack-stale-feed"
+      },
+      {
+        "action": "skipped",
+        "candidate_key": "stale_feed:tisseo:vehicle_positions",
+        "event_type": null,
+        "incident_id": null
+      },
+      {
+        "action": "skipped",
+        "candidate_key": "stale_feed:tisseo:service_alerts",
+        "event_type": null,
+        "incident_id": null
+      },
+      {
+        "action": "reopened",
+        "candidate_key": "stale_serving:tisseo",
+        "event_type": "REOPENED",
+        "incident_id": "demo-suppressed-serving"
+      },
+      {
+        "action": "opened",
+        "candidate_key": "quality_failure:tisseo:all",
+        "event_type": "OPENED",
+        "incident_id": "inc_5e3e3f5456903d19"
+      }
+    ],
+    "updated_count": 1
+  },
+  "event_count": 15,
+  "generated_at": "2026-08-23T13:55:40.895686+00:00",
+  "incident_count": 6,
+  "status": "ok"
+}

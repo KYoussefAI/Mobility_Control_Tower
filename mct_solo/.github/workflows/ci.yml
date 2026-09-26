@@ -1,0 +1,32 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install project
+        run: python -m pip install -e ".[dev,analytics]"
+      - name: Python quality and tests
+        run: |
+          ruff check .
+          black --check .
+          isort --check-only .
+          mypy src
+          coverage run -m pytest
+          coverage report --fail-under=80
+      - name: Deterministic dbt build and tests
+        run: |
+          python scripts/create_ci_fixture.py data/ci
+          mct --data-root data/ci dbt-build --static-run data/ci/silver/static/20260101T120000000000Z
+      - name: Build container image
+        run: docker build -t mct-solo:ci .
+

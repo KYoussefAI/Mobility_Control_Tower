@@ -3,3 +3,4 @@ config_version: 1.0
 class_name: Checkpoint
 validations:
   - expectation_suite_name: gold_suite
+

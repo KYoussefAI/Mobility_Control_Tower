@@ -1,0 +1,12 @@
+{
+  "acknowledge_repeat_status": 200,
+  "acknowledge_status": 200,
+  "browser": "ok",
+  "event_count": 2,
+  "generated_at": "2026-08-23T13:52:29.690836+00:00",
+  "incident_id": "inc_c9c6854338e20ed2",
+  "missing_token_status": 401,
+  "openapi_status": 200,
+  "readonly_mutation_status": 401,
+  "status": "ok"
+}

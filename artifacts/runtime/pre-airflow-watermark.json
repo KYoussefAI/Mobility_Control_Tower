@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "source": "tisseo",
+  "feed_type": "trip_updates",
+  "workflow": "incremental_refresh",
+  "latest_successfully_processed_snapshot": "fixture-3",
+  "latest_collection_time": "2026-01-05T09:10:00+00:00",
+  "latest_feed_timestamp": null,
+  "latest_serving_run": "serving_20260823T115630401009Z",
+  "updated_timestamp": "2026-08-23T11:56:30.993455+00:00",
+  "status": "success"
+}

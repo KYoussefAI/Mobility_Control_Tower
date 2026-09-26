@@ -1,0 +1,376 @@
+{
+  "generated_at": "2026-08-23T13:59:59.177947+00:00",
+  "groups": [
+    {
+      "evaluationTime": 0.028883135,
+      "file": "/etc/prometheus/rules/mct_alerts.yml",
+      "interval": 15,
+      "lastEvaluation": "2026-08-23T13:59:55.477976801Z",
+      "limit": 0,
+      "name": "mobility-control-tower",
+      "rules": [
+        {
+          "alerts": [],
+          "annotations": {
+            "summary": "No committed realtime collection for more than 15 minutes."
+          },
+          "duration": 120,
+          "evaluationTime": 0.002668063,
+          "health": "ok",
+          "keepFiringFor": 0,
+          "labels": {
+            "severity": "warning"
+          },
+          "lastEvaluation": "2026-08-23T13:59:55.478032411Z",
+          "name": "MCTNoRealtimeCollection",
+          "query": "time() - mct_realtime_last_collection_timestamp_seconds{feed_type=\"trip_updates\",source=\"tisseo\"} > 900",
+          "state": "inactive",
+          "type": "alerting"
+        },
+        {
+          "alerts": [],
+          "annotations": {
+            "summary": "GTFS-Realtime feed age is above the warning threshold."
+          },
+          "duration": 120,
+          "evaluationTime": 0.000436428,
+          "health": "ok",
+          "keepFiringFor": 0,
+          "labels": {
+            "severity": "warning"
+          },
+          "lastEvaluation": "2026-08-23T13:59:55.480705674Z",
+          "name": "MCTFeedAgeWarning",
+          "query": "mct_realtime_feed_age_seconds{feed_type=\"trip_updates\",source=\"tisseo\"} > 600",
+          "state": "inactive",
+          "type": "alerting"
+        },
+        {
+          "alerts": [],
+          "annotations": {
+            "summary": "GTFS-Realtime feed age is above the critical threshold."
+          },
+          "duration": 120,
+          "evaluationTime": 5.778e-05,
+          "health": "ok",
+          "keepFiringFor": 0,
+          "labels": {
+            "severity": "critical"
+          },
+          "lastEvaluation": "2026-08-23T13:59:55.481144112Z",
+          "name": "MCTFeedAgeCritical",
+          "query": "mct_realtime_feed_age_seconds{feed_type=\"trip_updates\",source=\"tisseo\"} > 1800",
+          "state": "inactive",
+          "type": "alerting"
+        },
+        {
+          "alerts": [],
+          "annotations": {
+            "summary": "Incomplete realtime snapshot directories are present."
+          },
+          "duration": 60,
+          "evaluationTime": 0.001012561,
+          "health": "ok",
+          "keepFiringFor": 0,
+          "labels": {
+            "severity": "warning"
+          },
+          "lastEvaluation": "2026-08-23T13:59:55.481203472Z",
+          "name": "MCTIncompleteSnapshot",
+          "query": "mct_realtime_incomplete_snapshots{feed_type=\"trip_updates\",source=\"tisseo\"} > 0",
+          "state": "inactive",
+          "type": "alerting"
+        },
+        {
+          "alerts": [],
+          "annotations": {
+            "summary": "Realtime analytical refresh backlog is growing."
+          },
+          "duration": 300,
+          "evaluationTime": 0.000807386,
+          "health": "ok",
+          "keepFiringFor": 0,
+          "labels": {
+            "severity": "warning"
+          },
+          "lastEvaluation": "2026-08-23T13:59:55.482218023Z",
+          "name": "MCTCollectionBacklog",
+          "query": "mct_realtime_unprocessed_snapshots{feed_type=\"trip_updates\",source=\"tisseo\"} > 5",
+          "state": "inactive",
+          "type": "alerting"
+        },
+        {
+          "alerts": [],
+          "annotations": {
+            "summary": "Latest incremental refresh did not complete successfully."
+          },
+          "duration": 120,
+          "evaluationTime": 0.001680108,
+          "health": "ok",
+          "keepFiringFor": 0,
+          "labels": {
+            "severity": "critical"
+          },
+          "lastEvaluation": "2026-08-23T13:59:55.483029539Z",
+          "name": "MCTIncrementalRefreshFailed",
+          "query": "mct_pipeline_last_status{pipeline=\"incremental_refresh\",source=\"tisseo\"} == 0",
+          "state": "inactive",
+          "type": "alerting"
+        },
+        {
+          "alerts": [
+            {
+              "activeAt": "2026-08-23T13:51:10.476404074Z",
+              "annotations": {
+                "summary": "Analytical watermark is older than the expected refresh window."
+              },
+              "labels": {
+                "alertname": "MCTAnalyticsWatermarkOld",
+                "feed_type": "trip_updates",
+                "instance": "metrics-exporter:9108",
+                "job": "mct-exporter",
+                "severity": "warning",
+                "source": "tisseo"
+              },
+              "state": "firing",
+              "value": "4.104582895994186e+03"
+            }
+          ],
+          "annotations": {
+            "summary": "Analytical watermark is older than the expected refresh window."
+          },
+          "duration": 300,
+          "evaluationTime": 0.003274454,
+          "health": "ok",
+          "keepFiringFor": 0,
+          "labels": {
+            "severity": "warning"
+          },
+          "lastEvaluation": "2026-08-23T13:59:55.484713237Z",
+          "name": "MCTAnalyticsWatermarkOld",
+          "query": "mct_analytics_watermark_age_seconds{feed_type=\"trip_updates\",source=\"tisseo\"} > 1800",
+          "state": "firing",
+          "type": "alerting"
+        },
+        {
+          "alerts": [],
+          "annotations": {
+            "summary": "Latest MCT quality-contract validation failed."
+          },
+          "duration": 60,
+          "evaluationTime": 0.000919651,
+          "health": "ok",
+          "keepFiringFor": 0,
+          "labels": {
+            "severity": "critical"
+          },
+          "lastEvaluation": "2026-08-23T13:59:55.487996291Z",
+          "name": "MCTQualityContractsFailed",
+          "query": "mct_quality_last_success{source=\"tisseo\",suite=\"all\"} == 0",
+          "state": "inactive",
+          "type": "alerting"
+        },
+        {
+          "alerts": [],
+          "annotations": {
+            "summary": "Current serving artifact is not queryable."
+          },
+          "duration": 60,
+          "evaluationTime": 6.026e-05,
+          "health": "ok",
+          "keepFiringFor": 0,
+          "labels": {
+            "severity": "critical"
+          },
+          "lastEvaluation": "2026-08-23T13:59:55.488918202Z",
+          "name": "MCTServingArtifactNotReady",
+          "query": "mct_serving_artifact_ready{source=\"tisseo\"} == 0",
+          "state": "inactive",
+          "type": "alerting"
+        },
+        {
+          "alerts": [],
+          "annotations": {
+            "summary": "Current serving artifact is older than one day."
+          },
+          "duration": 600,
+          "evaluationTime": 0.000409331,
+          "health": "ok",
+          "keepFiringFor": 0,
+          "labels": {
+            "severity": "warning"
+          },
+          "lastEvaluation": "2026-08-23T13:59:55.488979942Z",
+          "name": "MCTServingArtifactOld",
+          "query": "mct_serving_artifact_age_seconds{source=\"tisseo\"} > 86400",
+          "state": "inactive",
+          "type": "alerting"
+        },
+        {
+          "alerts": [],
+          "annotations": {
+            "summary": "Prometheus cannot scrape the MCT API metrics endpoint."
+          },
+          "duration": 60,
+          "evaluationTime": 0.000626641,
+          "health": "ok",
+          "keepFiringFor": 0,
+          "labels": {
+            "severity": "critical"
+          },
+          "lastEvaluation": "2026-08-23T13:59:55.489391073Z",
+          "name": "MCTAPIReadinessFailing",
+          "query": "up{job=\"mct-api\"} == 0",
+          "state": "inactive",
+          "type": "alerting"
+        },
+        {
+          "alerts": [],
+          "annotations": {
+            "summary": "A required Mobility Control Tower scrape target is down."
+          },
+          "duration": 60,
+          "evaluationTime": 0.001356371,
+          "health": "ok",
+          "keepFiringFor": 0,
+          "labels": {
+            "severity": "critical"
+          },
+          "lastEvaluation": "2026-08-23T13:59:55.490019634Z",
+          "name": "RequiredPrometheusTargetDown",
+          "query": "up{job=~\"mct-api|mct-exporter|prometheus\"} == 0",
+          "state": "inactive",
+          "type": "alerting"
+        },
+        {
+          "alerts": [],
+          "annotations": {
+            "summary": "MCT API 5xx response rate is elevated."
+          },
+          "duration": 300,
+          "evaluationTime": 0.000450421,
+          "health": "ok",
+          "keepFiringFor": 0,
+          "labels": {
+            "severity": "warning"
+          },
+          "lastEvaluation": "2026-08-23T13:59:55.491669816Z",
+          "name": "MCTAPIHigh5xxRate",
+          "query": "sum(rate(mct_api_requests_total{status=\"5xx\"}[5m])) > 0.1",
+          "state": "inactive",
+          "type": "alerting"
+        },
+        {
+          "alerts": [],
+          "annotations": {
+            "summary": "MCT DuckDB query p95 latency is elevated."
+          },
+          "duration": 300,
+          "evaluationTime": 0.008460611,
+          "health": "ok",
+          "keepFiringFor": 0,
+          "labels": {
+            "severity": "warning"
+          },
+          "lastEvaluation": "2026-08-23T13:59:55.492123747Z",
+          "name": "MCTAPIP95LatencyHigh",
+          "query": "histogram_quantile(0.95, sum by (le) (rate(mct_duckdb_query_duration_seconds_bucket[5m]))) > 2",
+          "state": "inactive",
+          "type": "alerting"
+        },
+        {
+          "alerts": [
+            {
+              "activeAt": "2026-08-23T13:51:10.476404074Z",
+              "annotations": {
+                "summary": "One or more critical application incidents are active."
+              },
+              "labels": {
+                "alertname": "CriticalMobilityIncidentsPresent",
+                "severity": "critical"
+              },
+              "state": "firing",
+              "value": "3e+00"
+            }
+          ],
+          "annotations": {
+            "summary": "One or more critical application incidents are active."
+          },
+          "duration": 120,
+          "evaluationTime": 0.002594313,
+          "health": "ok",
+          "keepFiringFor": 0,
+          "labels": {
+            "severity": "critical"
+          },
+          "lastEvaluation": "2026-08-23T13:59:55.500588178Z",
+          "name": "CriticalMobilityIncidentsPresent",
+          "query": "sum(mct_incidents_active{severity=\"CRITICAL\",status!=\"SUPPRESSED\"}) > 0",
+          "state": "firing",
+          "type": "alerting"
+        },
+        {
+          "alerts": [
+            {
+              "activeAt": "2026-08-23T13:51:10.476404074Z",
+              "annotations": {
+                "summary": "Incident evaluator has not completed successfully recently."
+              },
+              "labels": {
+                "alertname": "IncidentEvaluatorStale",
+                "instance": "metrics-exporter:9108",
+                "job": "mct-exporter",
+                "severity": "warning",
+                "source": "tisseo"
+              },
+              "state": "firing",
+              "value": "6.703736651182175e+03"
+            }
+          ],
+          "annotations": {
+            "summary": "Incident evaluator has not completed successfully recently."
+          },
+          "duration": 300,
+          "evaluationTime": 0.002792104,
+          "health": "ok",
+          "keepFiringFor": 0,
+          "labels": {
+            "severity": "warning"
+          },
+          "lastEvaluation": "2026-08-23T13:59:55.503185921Z",
+          "name": "IncidentEvaluatorStale",
+          "query": "time() - mct_incident_evaluation_last_success_timestamp_seconds{source=\"tisseo\"} > 1800",
+          "state": "firing",
+          "type": "alerting"
+        },
+        {
+          "alerts": [],
+          "annotations": {
+            "summary": "Latest incident evaluation failed."
+          },
+          "duration": 120,
+          "evaluationTime": 0.000871791,
+          "health": "ok",
+          "keepFiringFor": 0,
+          "labels": {
+            "severity": "critical"
+          },
+          "lastEvaluation": "2026-08-23T13:59:55.505985915Z",
+          "name": "IncidentEvaluationFailures",
+          "query": "mct_incident_evaluation_last_failure_timestamp_seconds{source=\"tisseo\"} > mct_incident_evaluation_last_success_timestamp_seconds{source=\"tisseo\"}",
+          "state": "inactive",
+          "type": "alerting"
+        }
+      ]
+    }
+  ],
+  "missing_alerts": [],
+  "required_alerts": [
+    "CriticalMobilityIncidentsPresent",
+    "IncidentEvaluationFailures",
+    "IncidentEvaluatorStale",
+    "MCTServingArtifactNotReady",
+    "RequiredPrometheusTargetDown"
+  ],
+  "status": "ok"
+}

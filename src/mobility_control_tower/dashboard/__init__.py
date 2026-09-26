@@ -1,1 +1,1 @@
-"""Streamlit dashboard for the local analytical application."""
+"""Streamlit dashboard for the local academic demo."""

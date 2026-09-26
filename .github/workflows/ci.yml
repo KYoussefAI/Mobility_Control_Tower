@@ -53,6 +53,12 @@ jobs:
           docker run --rm --entrypoint /bin/promtool -v "$PWD/observability/prometheus:/etc/prometheus:ro" prom/prometheus:v2.54.1 check config /etc/prometheus/prometheus.yml
           docker run --rm --entrypoint /bin/promtool -v "$PWD/observability/prometheus/rules:/rules:ro" prom/prometheus:v2.54.1 check rules /rules/mct_alerts.yml
           docker run --rm --entrypoint /bin/promtool -v "$PWD/observability/prometheus:/etc/prometheus:ro" -w /etc/prometheus/tests prom/prometheus:v2.54.1 test rules mct_alerts.test.yml
+      - name: Phase 3 local gates
+        run: |
+          make security-check
+          make lineage-smoke
+          make verify-restore
+          make benchmark
       - name: Deterministic analytical flow
         run: |
           DBT_RUN=$(python -m mobility_control_tower.cli run-dbt --silver-run data/fixtures/silver/tisseo/phase1 --history-run data/fixtures/realtime_history/tisseo/trip_updates --output-root data/fixtures/dbt_gold 2>&1 | tee /tmp/run_dbt.log | sed -n 's/.*dbt gold output written to: //p' | tail -1)
@@ -61,7 +67,7 @@ jobs:
           python scripts/smoke_test_reliability_views.py "$SERVING_DB"
           python -m mobility_control_tower.cli evaluate-incidents --source tisseo --evaluation-time '2026-07-19T12:00:00+00:00' --serving-root data/fixtures/serving --history-root data/fixtures/realtime_history --json
           python -m mobility_control_tower.cli evaluate-incidents --source tisseo --evaluation-time '2026-07-19T12:00:00+00:00' --serving-root data/fixtures/serving --history-root data/fixtures/realtime_history --json
-          python scripts/verify_restore.py
+          make verify-restore
       - name: Build Docker image
         run: docker build -t mobility-control-tower:ci .
       - name: Production Compose config

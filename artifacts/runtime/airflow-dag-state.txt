@@ -1,0 +1,8 @@
+﻿[2026-08-23T12:08:38.490+0000] {plugins.py:37} INFO - setup plugin alembic.autogenerate.schemas
+[2026-08-23T12:08:38.491+0000] {plugins.py:37} INFO - setup plugin alembic.autogenerate.tables
+[2026-08-23T12:08:38.491+0000] {plugins.py:37} INFO - setup plugin alembic.autogenerate.types
+[2026-08-23T12:08:38.491+0000] {plugins.py:37} INFO - setup plugin alembic.autogenerate.constraints
+[2026-08-23T12:08:38.491+0000] {plugins.py:37} INFO - setup plugin alembic.autogenerate.defaults
+[2026-08-23T12:08:38.492+0000] {plugins.py:37} INFO - setup plugin alembic.autogenerate.comments
+[2026-08-23T12:08:38.492+0000] {plugins.py:37} INFO - setup plugin alembic.autogenerate.checkconstraint_byname
+success

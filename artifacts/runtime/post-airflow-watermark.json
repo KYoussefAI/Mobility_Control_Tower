@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "source": "tisseo",
+  "feed_type": "trip_updates",
+  "workflow": "incremental_refresh",
+  "latest_successfully_processed_snapshot": "fixture-3",
+  "latest_collection_time": "2026-01-05T09:10:00+00:00",
+  "latest_feed_timestamp": null,
+  "latest_serving_run": "mobility_control_tower.duckdb",
+  "updated_timestamp": "2026-08-23T12:08:12.335210+00:00",
+  "status": "success"
+}

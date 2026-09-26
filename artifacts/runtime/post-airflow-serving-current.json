@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "source": "tisseo",
+  "serving_run_id": "serving_20260823T120807169723Z",
+  "canonical_database_path": "runs/serving_20260823T120807169723Z/mobility_control_tower.duckdb",
+  "database_path": "runs/serving_20260823T120807169723Z/mobility_control_tower.duckdb",
+  "serving_manifest_path": "runs/serving_20260823T120807169723Z/serving_manifest.json",
+  "dbt_gold_run_id": "2026-08-23_115558",
+  "static_input_run_id": "2026-08-23_115558",
+  "latest_included_realtime_snapshot": null,
+  "quality_status": "passed",
+  "generated_timestamp": "2026-08-23T12:08:07.848160+00:00",
+  "contract_version": 1
+}

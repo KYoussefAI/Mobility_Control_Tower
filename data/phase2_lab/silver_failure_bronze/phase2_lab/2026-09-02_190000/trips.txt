@@ -1,0 +1,2 @@
+trip_id, trip_id,route_id
+T1,T999,R1

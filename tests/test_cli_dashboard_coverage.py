@@ -44,6 +44,7 @@ def test_cli_success_branches(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setattr(cli, "generate_dbt_docs", lambda *args, **kwargs: file_path)
     monkeypatch.setattr(cli, "run_quality_validation", lambda **kwargs: file_path)
     monkeypatch.setattr(cli, "run_ge_validation", lambda **kwargs: file_path)
+    monkeypatch.setattr(cli, "run_benchmarks", lambda **kwargs: file_path)
     monkeypatch.setattr(cli, "build_serving_database", lambda *args, **kwargs: path)
     monkeypatch.setattr(cli, "query_serving_database", lambda *args, **kwargs: pd.DataFrame([{"x": 1}]))
     monkeypatch.setattr(cli, "generate_serving_report", lambda *args: file_path)
@@ -74,6 +75,7 @@ def test_cli_success_branches(monkeypatch, tmp_path: Path) -> None:
         ["generate-dbt-docs"],
         ["run-quality-validation", "--suite", "silver", "--silver-run", str(path)],
         ["run-ge-validation", "--suite", "silver", "--silver-run", str(path)],
+        ["run-benchmarks", "--silver-run", str(path)],
         ["build-serving-db", "--gold-run", str(path)],
         ["query-serving-db", "--db", str(file_path), "--query-name", "top-routes"],
         ["generate-serving-report", "--serving-run", str(path)],

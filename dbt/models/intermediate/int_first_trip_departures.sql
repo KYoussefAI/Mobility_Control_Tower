@@ -14,3 +14,4 @@ select
     floor(departure_time_seconds / 3600)::integer as departure_hour
 from ranked
 where rn = 1 and departure_time_seconds is not null
+

@@ -7,3 +7,4 @@ select
     row_number() over (order by scheduled_trips_count desc, service_date, route_id)::integer as rank
 from {{ ref('route_daily_trips') }}
 qualify rank <= 50
+

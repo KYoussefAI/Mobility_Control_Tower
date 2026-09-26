@@ -16,7 +16,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-PIPELINE_DURATION = PIPELINE_FAILURES = PIPELINE_SUCCESS = ROWS_PROCESSED = None
+try:
+    from mobility_control_tower.observability import PIPELINE_DURATION, PIPELINE_FAILURES, PIPELINE_SUCCESS, ROWS_PROCESSED
+except Exception:  # pragma: no cover - Airflow can import DAGs before package installation
+    PIPELINE_DURATION = PIPELINE_FAILURES = PIPELINE_SUCCESS = ROWS_PROCESSED = None
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]

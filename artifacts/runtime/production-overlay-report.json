@@ -1,0 +1,17 @@
+{
+  "checked_services": [
+    "airflow-init",
+    "airflow-scheduler",
+    "airflow-webserver",
+    "api",
+    "dashboard",
+    "grafana",
+    "incident-migrate",
+    "metrics-exporter",
+    "postgres",
+    "prometheus",
+    "reverse-proxy"
+  ],
+  "failures": [],
+  "status": "ok"
+}

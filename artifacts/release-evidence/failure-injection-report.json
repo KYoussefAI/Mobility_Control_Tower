@@ -1,0 +1,34 @@
+{
+  "checks": {
+    "airflow_scheduler_interruption": {
+      "down_check": 0,
+      "recovered": true
+    },
+    "api_restart": true,
+    "corrupt_backup_fixture": true,
+    "evaluator_retry": {
+      "event_delta": 0,
+      "first": 0,
+      "second": 0
+    },
+    "failed_serving_candidate": {
+      "api_ready_status": 200,
+      "returncode": 1,
+      "serving_run_after": "serving_20260823T125122073064Z",
+      "serving_run_before": "serving_20260823T125122073064Z"
+    },
+    "incompatible_schema_fixture": true,
+    "metrics_exporter_restart": true,
+    "missing_or_zero_screenshot_fixture": true,
+    "postgres_interruption": {
+      "api_not_ready": true,
+      "recovered": true
+    },
+    "protected_action_insufficient_scope": 401,
+    "protected_action_without_token": 401,
+    "protected_action_writer": 200,
+    "required_prometheus_target_down_fixture": 200
+  },
+  "generated_at": "2026-08-23T13:57:17.799976+00:00",
+  "status": "ok"
+}

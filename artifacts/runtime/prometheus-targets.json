@@ -1,0 +1,82 @@
+{
+  "down_targets": [],
+  "generated_at": "2026-08-23T13:59:59.154093+00:00",
+  "missing_targets": [],
+  "required_targets": [
+    "mct-api",
+    "mct-exporter",
+    "prometheus"
+  ],
+  "status": "ok",
+  "targets": [
+    {
+      "discoveredLabels": {
+        "__address__": "api:8000",
+        "__metrics_path__": "/pipeline/metrics",
+        "__scheme__": "http",
+        "__scrape_interval__": "15s",
+        "__scrape_timeout__": "10s",
+        "job": "mct-api"
+      },
+      "globalUrl": "http://api:8000/pipeline/metrics",
+      "health": "up",
+      "labels": {
+        "instance": "api:8000",
+        "job": "mct-api"
+      },
+      "lastError": "",
+      "lastScrape": "2026-08-23T13:59:50.664572877Z",
+      "lastScrapeDuration": 0.010469599,
+      "scrapeInterval": "15s",
+      "scrapePool": "mct-api",
+      "scrapeTimeout": "10s",
+      "scrapeUrl": "http://api:8000/pipeline/metrics"
+    },
+    {
+      "discoveredLabels": {
+        "__address__": "metrics-exporter:9108",
+        "__metrics_path__": "/metrics",
+        "__scheme__": "http",
+        "__scrape_interval__": "15s",
+        "__scrape_timeout__": "10s",
+        "job": "mct-exporter"
+      },
+      "globalUrl": "http://metrics-exporter:9108/metrics",
+      "health": "up",
+      "labels": {
+        "instance": "metrics-exporter:9108",
+        "job": "mct-exporter"
+      },
+      "lastError": "",
+      "lastScrape": "2026-08-23T13:59:47.088713902Z",
+      "lastScrapeDuration": 0.124721564,
+      "scrapeInterval": "15s",
+      "scrapePool": "mct-exporter",
+      "scrapeTimeout": "10s",
+      "scrapeUrl": "http://metrics-exporter:9108/metrics"
+    },
+    {
+      "discoveredLabels": {
+        "__address__": "localhost:9090",
+        "__metrics_path__": "/metrics",
+        "__scheme__": "http",
+        "__scrape_interval__": "15s",
+        "__scrape_timeout__": "10s",
+        "job": "prometheus"
+      },
+      "globalUrl": "http://74885b9e3837:9090/metrics",
+      "health": "up",
+      "labels": {
+        "instance": "localhost:9090",
+        "job": "prometheus"
+      },
+      "lastError": "",
+      "lastScrape": "2026-08-23T13:59:52.313724733Z",
+      "lastScrapeDuration": 0.024269657,
+      "scrapeInterval": "15s",
+      "scrapePool": "prometheus",
+      "scrapeTimeout": "10s",
+      "scrapeUrl": "http://localhost:9090/metrics"
+    }
+  ]
+}

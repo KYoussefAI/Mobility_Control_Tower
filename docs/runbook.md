@@ -131,7 +131,7 @@ python -m mobility_control_tower.cli generate-final-report \
   --serving-run data/serving/tisseo/<static_run_id>
 ```
 
-## Demonstration Sequence
+## Teacher Demo Sequence
 
 1. Show the architecture diagram in the README.
 2. Run `pytest`.
