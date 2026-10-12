@@ -1,0 +1,68 @@
+version: 2
+
+unit_tests:
+  - name: network_denominator_is_canonical_trip_stops
+    model: network_on_time_performance
+    given:
+      - input: ref('int_trip_stop_observations')
+        format: sql
+        rows: |
+          select * from (
+              values
+                  (date '2026-01-01', 'T1', 1, 0, true),
+                  (date '2026-01-01', 'T1', 2, 400, false),
+                  (date '2026-01-01', 'T2', 1, 100, true)
+          ) as observations(service_date, trip_id, stop_sequence, delay_seconds, is_on_time)
+    expect:
+      format: dict
+      rows:
+        - {service_date: '2026-01-01', observed_trip_stops: 3, observed_trips: 2, on_time_trip_stops: 2, outside_on_time_window: 1, on_time_percentage: 66.67}
+
+  - name: coverage_counts_distinct_scheduled_and_observed_trips
+    model: realtime_coverage
+    given:
+      - input: ref('stg_feed_snapshots')
+        format: sql
+        rows: |
+          select date '2026-01-01' as collection_date
+      - input: ref('int_scheduled_trips')
+        format: sql
+        rows: |
+          select * from (
+              values
+                  (date '2026-01-01', 'T1'),
+                  (date '2026-01-01', 'T2')
+          ) as scheduled(service_date, trip_id)
+      - input: ref('int_trip_stop_observations')
+        format: sql
+        rows: |
+          select * from (
+              values
+                  (date '2026-01-01', 'T1', 1),
+                  (date '2026-01-01', 'T1', 2)
+          ) as observations(service_date, trip_id, stop_sequence)
+    expect:
+      format: dict
+      rows:
+        - {service_date: '2026-01-01', scheduled_trips: 2, matched_realtime_trips: 1, unknown_trips: 1, coverage_percentage: 50.0}
+
+  - name: nine_canonical_records_are_low_sample
+    model: route_delay_summary
+    given:
+      - input: ref('int_trip_stop_observations')
+        format: sql
+        rows: |
+          select
+              date '2026-01-01' as service_date,
+              'R1'::varchar as route_id,
+              '13'::varchar as route_short_name,
+              'Route 13'::varchar as route_long_name,
+              'T' || cast(stop_sequence as varchar) as trip_id,
+              stop_sequence::integer as stop_sequence,
+              60::integer as delay_seconds,
+              true as is_on_time
+          from range(1, 10) as observations(stop_sequence)
+    expect:
+      format: dict
+      rows:
+        - {service_date: '2026-01-01', route_id: R1, observed_trip_stops: 9, sample_size: 9, sample_size_status: LOW_SAMPLE}

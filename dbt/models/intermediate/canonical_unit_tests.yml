@@ -1,0 +1,78 @@
+version: 2
+
+unit_tests:
+  - name: canonical_trip_stop_uses_latest_valid_scheduled_publication
+    description: Repeated polls collapse to the latest publication while ambiguous and wrong-date trips are excluded.
+    model: int_trip_stop_observations
+    given:
+      - input: ref('int_delay_observations')
+        format: sql
+        rows: |
+          select * from (
+              values
+                  ('snap-1', timestamptz '2026-01-01 10:00:00+00', timestamptz '2026-01-01 09:59:00+00', date '2026-01-01', 'e1', 'T1', 'R1', 'S1', 1, 60, 'SCHEDULED', true, 'UNAMBIGUOUS', true),
+                  ('snap-2', timestamptz '2026-01-01 10:05:00+00', timestamptz '2026-01-01 10:04:00+00', date '2026-01-01', 'e1', 'T1', 'R1', 'S1', 1, 120, 'SCHEDULED', true, 'UNAMBIGUOUS', true),
+                  ('snap-3', timestamptz '2026-01-01 10:10:00+00', timestamptz '2026-01-01 10:09:00+00', date '2026-01-01', 'e1', 'T1', 'R1', 'S1', 1, 180, 'SCHEDULED', true, 'UNAMBIGUOUS', true),
+                  ('snap-wrong-date', timestamptz '2026-01-02 10:00:00+00', null::timestamptz, date '2026-01-02', 'e2', 'T2', 'R1', 'S1', 1, 30, 'SCHEDULED', true, 'UNAMBIGUOUS', true),
+                  ('snap-ambiguous', timestamptz '2026-01-01 10:15:00+00', null::timestamptz, date '2026-01-01', 'e3', 'T1', 'R1', 'S1', 1, 240, 'SCHEDULED', true, 'AMBIGUOUS', true)
+          ) as updates(
+              snapshot_id, collected_at, update_timestamp, service_date, entity_id,
+              trip_id, route_id, stop_id, stop_sequence, delay_seconds,
+              schedule_relationship, has_known_delay, source_key_status, is_on_time
+          )
+      - input: ref('int_scheduled_trips')
+        format: sql
+        rows: |
+          select
+              date '2026-01-01' as service_date,
+              'T1'::varchar as trip_id,
+              'WK'::varchar as service_id,
+              'R1'::varchar as route_id,
+              '13'::varchar as route_short_name,
+              'Saint Cyprien - Oncopole'::varchar as route_long_name,
+              3::integer as route_type
+      - input: ref('stg_stop_times')
+        format: sql
+        rows: |
+          select
+              'T1'::varchar as trip_id,
+              'S1'::varchar as stop_id,
+              1::integer as stop_sequence,
+              36000::integer as departure_seconds
+    expect:
+      format: dict
+      rows:
+        - {snapshot_id: snap-3, service_date: '2026-01-01', trip_id: T1, stop_sequence: 1, delay_seconds: 180}
+
+  - name: canonical_trip_stop_falls_back_to_collection_time
+    description: Collection time orders publications when update_timestamp is absent, with deterministic snapshot tie breaking.
+    model: int_trip_stop_observations
+    given:
+      - input: ref('int_delay_observations')
+        format: sql
+        rows: |
+          select * from (
+              values
+                  ('snap-a', timestamptz '2026-01-01 10:00:00+00', null::timestamptz, date '2026-01-01', 'e1', 'T1', 'R1', 'S1', 1, 60, 'SCHEDULED', true, 'UNAMBIGUOUS', true),
+                  ('snap-b', timestamptz '2026-01-01 10:05:00+00', null::timestamptz, date '2026-01-01', 'e1', 'T1', 'R1', 'S1', 1, 120, 'SCHEDULED', true, 'UNAMBIGUOUS', true)
+          ) as updates(
+              snapshot_id, collected_at, update_timestamp, service_date, entity_id,
+              trip_id, route_id, stop_id, stop_sequence, delay_seconds,
+              schedule_relationship, has_known_delay, source_key_status, is_on_time
+          )
+      - input: ref('int_scheduled_trips')
+        format: sql
+        rows: |
+          select date '2026-01-01' as service_date, 'T1'::varchar as trip_id,
+                 'WK'::varchar as service_id, 'R1'::varchar as route_id,
+                 '13'::varchar as route_short_name, 'Route 13'::varchar as route_long_name,
+                 3::integer as route_type
+      - input: ref('stg_stop_times')
+        format: sql
+        rows: |
+          select 'T1'::varchar as trip_id, 'S1'::varchar as stop_id,
+                 1::integer as stop_sequence, 36000::integer as departure_seconds
+    expect:
+      format: dict
+      rows:
+        - {snapshot_id: snap-b, delay_seconds: 120}
