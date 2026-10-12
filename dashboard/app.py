@@ -11,12 +11,35 @@ import streamlit as st
 
 DEFAULT_DB = Path(__file__).resolve().parents[1] / "data" / "mart" / "mobility_control_tower.duckdb"
 DB_PATH = Path(os.environ.get("MCT_DBT_DATABASE_PATH", DEFAULT_DB))
+REQUIRED_MARTS = {
+    "feed_freshness",
+    "hourly_delay_summary",
+    "network_on_time_performance",
+    "realtime_coverage",
+    "route_daily_service",
+    "route_delay_summary",
+}
 
 
 @st.cache_data(ttl=60)
 def query(sql: str, parameters: list[object] | None = None) -> pd.DataFrame:
     with duckdb.connect(str(DB_PATH), read_only=True) as connection:
         return connection.execute(sql, parameters or []).fetchdf()
+
+
+def missing_required_marts(database: Path = DB_PATH) -> list[str]:
+    with duckdb.connect(str(database), read_only=True) as connection:
+        present = {
+            row[0]
+            for row in connection.execute(
+                """
+                select table_name
+                from information_schema.tables
+                where table_schema = 'main'
+                """
+            ).fetchall()
+        }
+    return sorted(REQUIRED_MARTS - present)
 
 
 def network_overview() -> None:
@@ -155,6 +178,18 @@ def main() -> None:
     st.caption("Tisséo GTFS Schedule compared with scheduled GTFS-Realtime Trip Updates polling")
     if not DB_PATH.is_file():
         st.error(f"DuckDB file not found at {DB_PATH}. Run a pipeline before opening the dashboard.")
+        st.stop()
+    try:
+        missing = missing_required_marts()
+    except duckdb.Error as error:
+        st.error(f"DuckDB could not be opened at {DB_PATH}: {error}")
+        st.stop()
+    if missing:
+        st.error(
+            "The analytics database is only partially built. Missing required marts: "
+            f"{', '.join(missing)}. Rebuild it with "
+            "`python -m mobility_control_tower.cli --data-root .\\data dbt-build`."
+        )
         st.stop()
     page = st.sidebar.radio("Page", ("Network Overview", "Route Reliability", "Data Quality / Feed Health"))
     if page == "Network Overview":

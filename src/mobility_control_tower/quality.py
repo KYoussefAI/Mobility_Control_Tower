@@ -6,6 +6,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
+import duckdb
 import pandas as pd
 
 from .io import utc_now, write_json
@@ -82,37 +83,91 @@ def validate_realtime(
 ) -> dict[str, Any]:
     stop_files = list((root / "silver" / "realtime" / "stop_time_updates").glob("date=*/*.parquet"))
     trip_files = list((root / "silver" / "realtime" / "trip_updates").glob("date=*/*.parquet"))
-    stops = (
-        pd.concat([pd.read_parquet(path) for path in stop_files], ignore_index=True)
-        if stop_files
-        else pd.DataFrame(columns=["snapshot_id", "entity_id", "stop_sequence", "observed_delay"])
-    )
-    trips = (
-        pd.concat([pd.read_parquet(path) for path in trip_files], ignore_index=True)
-        if trip_files
-        else pd.DataFrame(columns=["snapshot_id", "entity_id", "trip_id"])
-    )
-    delay = pd.to_numeric(stops["observed_delay"], errors="coerce")
+
+    stop_metrics = {"missing_snapshot": 0, "duplicate_rows": 0, "out_of_range": 0}
+    trip_metrics = {"missing_snapshot": 0, "missing_trip": 0, "duplicate_rows": 0}
+    with duckdb.connect() as connection:
+        connection.execute("set memory_limit = '512MB'")
+        connection.execute("set preserve_insertion_order = false")
+        if stop_files:
+            stop_row = connection.execute(
+                """
+                with source as (
+                    select snapshot_id, entity_id, stop_sequence, observed_delay
+                    from read_parquet(?, union_by_name = true, hive_partitioning = false)
+                ),
+                metrics as (
+                    select
+                        count(*) filter (where snapshot_id is null) as missing_snapshot,
+                        count(*) filter (
+                            where abs(try_cast(observed_delay as bigint)) > ?
+                        ) as out_of_range
+                    from source
+                ),
+                duplicate_metrics as (
+                    select coalesce(sum(row_count - 1), 0) as duplicate_rows
+                    from (
+                        select count(*) as row_count
+                        from source
+                        group by snapshot_id, entity_id, stop_sequence
+                        having count(*) > 1
+                    )
+                )
+                select missing_snapshot, duplicate_rows, out_of_range
+                from metrics cross join duplicate_metrics
+                """,
+                [[path.as_posix() for path in stop_files], max_abs_delay_seconds],
+            ).fetchone()
+            stop_metrics = dict(zip(stop_metrics, map(int, stop_row), strict=True))
+        if trip_files:
+            trip_row = connection.execute(
+                """
+                with source as (
+                    select snapshot_id, entity_id, trip_id
+                    from read_parquet(?, union_by_name = true, hive_partitioning = false)
+                ),
+                metrics as (
+                    select
+                        count(*) filter (where snapshot_id is null) as missing_snapshot,
+                        count(*) filter (where trip_id is null) as missing_trip
+                    from source
+                ),
+                duplicate_metrics as (
+                    select coalesce(sum(row_count - 1), 0) as duplicate_rows
+                    from (
+                        select count(*) as row_count
+                        from source
+                        group by snapshot_id, entity_id
+                        having count(*) > 1
+                    )
+                )
+                select missing_snapshot, missing_trip, duplicate_rows
+                from metrics cross join duplicate_metrics
+                """,
+                [[path.as_posix() for path in trip_files]],
+            ).fetchone()
+            trip_metrics = dict(zip(trip_metrics, map(int, trip_row), strict=True))
+
     checks = [
         _check(
             "snapshot_id_not_null",
-            stops["snapshot_id"].isna().sum() + trips["snapshot_id"].isna().sum(),
+            stop_metrics["missing_snapshot"] + trip_metrics["missing_snapshot"],
             "Parsed rows retain snapshot lineage.",
         ),
-        _check("trip_id_not_null", trips["trip_id"].isna().sum(), "Tisséo Trip Updates should identify trips."),
-        _check(
+        _check("trip_id_not_null", trip_metrics["missing_trip"], "Tisséo Trip Updates should identify trips."),
+        _warning_check(
             "trip_update_key_unique",
-            trips.duplicated(["snapshot_id", "entity_id"]).sum(),
-            "A snapshot/entity pair must be unique.",
+            trip_metrics["duplicate_rows"],
+            "Duplicate source trip-update keys are retained in Silver and handled before analytical KPIs.",
         ),
-        _check(
+        _warning_check(
             "stop_update_key_unique",
-            stops.duplicated(["snapshot_id", "entity_id", "stop_sequence"]).sum(),
-            "A snapshot/entity/stop-sequence observation must be unique.",
+            stop_metrics["duplicate_rows"],
+            "Duplicate source stop-update keys are retained in Silver; ambiguous keys are excluded from analytical KPIs.",
         ),
         _warning_check(
             "delay_sanity",
-            delay.abs().gt(max_abs_delay_seconds).sum(),
+            stop_metrics["out_of_range"],
             f"Published delays outside ±{max_abs_delay_seconds} seconds are retained but excluded from reliability KPIs.",
         ),
     ]

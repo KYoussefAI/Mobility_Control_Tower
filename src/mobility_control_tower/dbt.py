@@ -15,6 +15,8 @@ from .config import PROJECT_ROOT, db_path, load_source
 def build_dbt(static_run: Path, root: Path, *, database: Path | None = None) -> Path:
     database_path = database or db_path(root)
     database_path.parent.mkdir(parents=True, exist_ok=True)
+    temp_directory = (root / "duckdb_tmp").resolve()
+    temp_directory.mkdir(parents=True, exist_ok=True)
     realtime_root = root / "silver" / "realtime"
     source = load_source()
     variables = {
@@ -29,6 +31,7 @@ def build_dbt(static_run: Path, root: Path, *, database: Path | None = None) -> 
     }
     environment = os.environ.copy()
     environment["MCT_DBT_DATABASE_PATH"] = str(database_path)
+    environment["MCT_DBT_TEMP_DIRECTORY"] = temp_directory.as_posix()
     executable = shutil.which("dbt")
     if executable is None:
         candidate = Path(sys.executable).parent / ("dbt.exe" if os.name == "nt" else "dbt")
@@ -39,6 +42,8 @@ def build_dbt(static_run: Path, root: Path, *, database: Path | None = None) -> 
         [
             executable,
             "build",
+            "--threads",
+            "1",
             "--project-dir",
             str(PROJECT_ROOT / "dbt"),
             "--profiles-dir",

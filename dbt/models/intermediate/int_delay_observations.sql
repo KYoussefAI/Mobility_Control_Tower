@@ -1,16 +1,45 @@
-with deduplicated as (
-    select * exclude (_row_number)
-    from (
-        select
-            updates.*,
-            row_number() over (
-                partition by snapshot_id, entity_id, stop_sequence
-                order by collected_at desc
-            ) as _row_number
-        from {{ ref('stg_realtime_updates') }} updates
-    )
-    where _row_number = 1
+{{ config(materialized='table') }}
+
+with analytically_distinct as (
+    select
+        snapshot_id,
+        min(collected_at) as collected_at,
+        service_date,
+        entity_id,
+        trip_id,
+        route_id,
+        stop_id,
+        stop_sequence,
+        observed_delay,
+        schedule_relationship
+    from {{ ref('stg_realtime_updates') }}
+    group by
+        snapshot_id,
+        service_date,
+        entity_id,
+        trip_id,
+        route_id,
+        stop_id,
+        stop_sequence,
+        observed_delay,
+        schedule_relationship
+),
+
+classified as (
+    select
+        analytically_distinct.*,
+        count(*) over (
+            partition by snapshot_id, entity_id, stop_sequence
+        ) as payload_variant_count
+    from analytically_distinct
+),
+
+unambiguous as (
+    select * exclude (payload_variant_count)
+    from classified
+    where payload_variant_count = 1
 )
+
 select
     updates.snapshot_id,
     updates.collected_at,
@@ -37,10 +66,12 @@ select
         when abs(updates.observed_delay) > {{ var('max_abs_delay_seconds') }} then 'OUT_OF_RANGE'
         else 'VALID'
     end as delay_quality_status,
-    updates.observed_delay between {{ var('on_time_early_seconds') }} and {{ var('on_time_late_seconds') }} as is_on_time
-from deduplicated updates
+    updates.observed_delay between {{ var('on_time_early_seconds') }}
+        and {{ var('on_time_late_seconds') }} as is_on_time
+from unambiguous updates
 left join {{ ref('stg_trips') }} trips using (trip_id)
-left join {{ ref('stg_routes') }} routes on coalesce(updates.route_id, trips.route_id) = routes.route_id
+left join {{ ref('stg_routes') }} routes
+    on coalesce(updates.route_id, trips.route_id) = routes.route_id
 left join {{ ref('stg_stop_times') }} stop_times
     on updates.trip_id = stop_times.trip_id
     and updates.stop_sequence = stop_times.stop_sequence

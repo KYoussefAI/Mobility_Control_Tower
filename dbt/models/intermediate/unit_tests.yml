@@ -95,3 +95,108 @@ unit_tests:
         - {entity_id: negative-edge, delay_seconds: -7200, has_known_delay: true, delay_quality_status: VALID}
         - {entity_id: positive-edge, delay_seconds: 7200, has_known_delay: true, delay_quality_status: VALID}
         - {entity_id: positive-out, delay_seconds: 7201, has_known_delay: false, delay_quality_status: OUT_OF_RANGE}
+
+  - name: exact_duplicates_collapse_and_ambiguous_observations_are_excluded
+    description: Exact analytical duplicates produce one observation while any conflicting payload for a key excludes that key.
+    model: int_delay_observations
+    given:
+      - input: ref('stg_realtime_updates')
+        format: sql
+        rows: |
+          select
+              test_case.snapshot_id::varchar as snapshot_id,
+              test_case.collected_at::timestamptz as collected_at,
+              date '2026-01-01' as service_date,
+              test_case.entity_id::varchar as entity_id,
+              'T1'::varchar as trip_id,
+              'R1'::varchar as route_id,
+              test_case.stop_id::varchar as stop_id,
+              test_case.stop_sequence::integer as stop_sequence,
+              test_case.observed_delay::integer as observed_delay,
+              'SCHEDULED'::varchar as schedule_relationship
+          from (
+              values
+                  ('snapshot-1', timestamptz '2026-01-01 12:00:00+00', 'exact', 'S1', 1, 120),
+                  ('snapshot-1', timestamptz '2026-01-01 12:05:00+00', 'exact', 'S1', 1, 120),
+                  ('snapshot-1', timestamptz '2026-01-01 12:00:00+00', 'stop-conflict', 'S1', 2, 120),
+                  ('snapshot-1', timestamptz '2026-01-01 12:00:00+00', 'stop-conflict', 'S2', 2, 120),
+                  ('snapshot-1', timestamptz '2026-01-01 12:00:00+00', 'delay-conflict', 'S1', 3, 120),
+                  ('snapshot-1', timestamptz '2026-01-01 12:00:00+00', 'delay-conflict', 'S1', 3, 420),
+                  ('snapshot-1', timestamptz '2026-01-01 12:00:00+00', 'unique', 'S1', 4, 420)
+          ) as test_case(snapshot_id, collected_at, entity_id, stop_id, stop_sequence, observed_delay)
+      - input: ref('stg_trips')
+        format: sql
+        rows: |
+          select 'T1'::varchar as trip_id, 'R1'::varchar as route_id
+      - input: ref('stg_routes')
+        format: sql
+        rows: |
+          select
+              'R1'::varchar as route_id,
+              'A'::varchar as route_short_name,
+              'Airport'::varchar as route_long_name
+      - input: ref('stg_stop_times')
+        format: sql
+        rows: |
+          select
+              'T1'::varchar as trip_id,
+              stop_sequence::integer as stop_sequence,
+              43200::integer as departure_seconds
+          from range(1, 5) as stop_times(stop_sequence)
+    expect:
+      format: dict
+      rows:
+        - {entity_id: exact, stop_sequence: 1, delay_seconds: 120, is_on_time: true}
+        - {entity_id: unique, stop_sequence: 4, delay_seconds: 420, is_on_time: false}
+
+  - name: on_time_window_is_inclusive
+    description: The on-time window includes delays from -60 through +300 seconds and excludes adjacent values.
+    model: int_delay_observations
+    given:
+      - input: ref('stg_realtime_updates')
+        format: sql
+        rows: |
+          select
+              'snapshot-window'::varchar as snapshot_id,
+              timestamptz '2026-01-01 12:00:00+00' as collected_at,
+              date '2026-01-01' as service_date,
+              test_case.entity_id::varchar as entity_id,
+              'T1'::varchar as trip_id,
+              'R1'::varchar as route_id,
+              'S1'::varchar as stop_id,
+              test_case.stop_sequence::integer as stop_sequence,
+              test_case.observed_delay::integer as observed_delay,
+              'SCHEDULED'::varchar as schedule_relationship
+          from (
+              values
+                  ('too-early', 1, -61),
+                  ('early-edge', 2, -60),
+                  ('late-edge', 3, 300),
+                  ('too-late', 4, 301)
+          ) as test_case(entity_id, stop_sequence, observed_delay)
+      - input: ref('stg_trips')
+        format: sql
+        rows: |
+          select 'T1'::varchar as trip_id, 'R1'::varchar as route_id
+      - input: ref('stg_routes')
+        format: sql
+        rows: |
+          select
+              'R1'::varchar as route_id,
+              'A'::varchar as route_short_name,
+              'Airport'::varchar as route_long_name
+      - input: ref('stg_stop_times')
+        format: sql
+        rows: |
+          select
+              'T1'::varchar as trip_id,
+              stop_sequence::integer as stop_sequence,
+              43200::integer as departure_seconds
+          from range(1, 5) as stop_times(stop_sequence)
+    expect:
+      format: dict
+      rows:
+        - {entity_id: too-early, is_on_time: false}
+        - {entity_id: early-edge, is_on_time: true}
+        - {entity_id: late-edge, is_on_time: true}
+        - {entity_id: too-late, is_on_time: false}

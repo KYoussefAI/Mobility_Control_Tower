@@ -4,5 +4,9 @@ mobility_control_tower:
     dev:
       type: duckdb
       path: "{{ env_var('MCT_DBT_DATABASE_PATH', '../data/mart/mobility_control_tower.duckdb') }}"
-      threads: 4
-
+      threads: 1
+      config_options:
+        temp_directory: "{{ env_var('MCT_DBT_TEMP_DIRECTORY', '../data/duckdb_tmp') }}"
+      settings:
+        memory_limit: "{{ env_var('MCT_DBT_MEMORY_LIMIT', '2GB') }}"
+        preserve_insertion_order: false

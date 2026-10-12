@@ -90,3 +90,41 @@ def test_realtime_delay_sanity_boundary_is_inclusive(tmp_path) -> None:
     delay_check = next(check for check in report["checks"] if check["name"] == "delay_sanity")
     assert report["status"] == "WARN"
     assert delay_check["problem_count"] == 2
+
+
+def test_realtime_duplicate_source_keys_are_warnings(tmp_path) -> None:
+    preserve_realtime_bytes(
+        trip_updates_payload(),
+        load_source(),
+        tmp_path,
+        collected_at=datetime(2026, 1, 1, 12, tzinfo=UTC),
+    )
+    realtime = tmp_path / "silver" / "realtime"
+    for table in ("trip_updates", "stop_time_updates"):
+        path = next((realtime / table).glob("date=*/*.parquet"))
+        rows = pd.read_parquet(path)
+        pd.concat([rows, rows.iloc[[0]]], ignore_index=True).to_parquet(path, index=False)
+
+    report = validate_realtime(tmp_path)
+    checks = {check["name"]: check for check in report["checks"]}
+    assert report["status"] == "WARN"
+    assert checks["trip_update_key_unique"]["status"] == "WARN"
+    assert checks["stop_update_key_unique"]["status"] == "WARN"
+
+
+def test_realtime_missing_trip_identifier_remains_fatal(tmp_path) -> None:
+    preserve_realtime_bytes(
+        trip_updates_payload(),
+        load_source(),
+        tmp_path,
+        collected_at=datetime(2026, 1, 1, 12, tzinfo=UTC),
+    )
+    path = next((tmp_path / "silver" / "realtime" / "trip_updates").glob("date=*/*.parquet"))
+    rows = pd.read_parquet(path)
+    rows.loc[0, "trip_id"] = None
+    rows.to_parquet(path, index=False)
+
+    report = validate_realtime(tmp_path)
+    check = next(check for check in report["checks"] if check["name"] == "trip_id_not_null")
+    assert report["status"] == "FAIL"
+    assert check["status"] == "FAIL"

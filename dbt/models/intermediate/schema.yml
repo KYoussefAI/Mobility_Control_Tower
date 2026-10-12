@@ -15,7 +15,7 @@ models:
       - name: service_date
         tests: [not_null]
   - name: int_delay_observations
-    description: Deduplicated Trip Update observations enriched with static schedule matches. Published delays beyond ±7200 seconds are retained as OUT_OF_RANGE but are not KPI-eligible.
+    description: Exact analytical Trip Update duplicates are collapsed and ambiguous keys are excluded before static schedule enrichment. Published delays beyond ±7200 seconds are retained as OUT_OF_RANGE but are not KPI-eligible.
     columns:
       - name: snapshot_id
         tests: [not_null]

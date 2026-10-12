@@ -53,12 +53,14 @@ def test_dbt_runner_passes_explicit_paths(tmp_path, monkeypatch) -> None:
     command, environment = calls[0]
     variables = json.loads(command[command.index("--vars") + 1])
     assert command[:2] == ["dbt", "build"]
+    assert command[2:4] == ["--threads", "1"]
     assert variables["static_path"] == static_run.resolve().as_posix()
     assert variables["on_time_late_seconds"] == 300
     assert variables["max_abs_delay_seconds"] == 7200
     assert variables["min_reliable_sample_size"] == 5
     assert variables["fresh_realtime_seconds"] == 90
     assert environment["MCT_DBT_DATABASE_PATH"] == str(database)
+    assert environment["MCT_DBT_TEMP_DIRECTORY"] == (tmp_path / "duckdb_tmp").resolve().as_posix()
 
 
 def test_cli_dbt_build_uses_paris_date_when_start_date_is_missing(tmp_path, monkeypatch, gtfs_zip_bytes: bytes) -> None:
