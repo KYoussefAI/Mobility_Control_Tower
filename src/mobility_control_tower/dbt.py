@@ -25,7 +25,7 @@ def build_dbt(static_run: Path, root: Path, *, database: Path | None = None) -> 
         "on_time_early_seconds": -60,
         "on_time_late_seconds": 300,
         "max_abs_delay_seconds": 7200,
-        "min_reliable_sample_size": 5,
+        "min_sufficient_sample_size": 30,
         "fresh_realtime_seconds": source.expected_realtime_freshness_seconds,
         "stale_realtime_seconds": source.stale_realtime_after_seconds,
     }

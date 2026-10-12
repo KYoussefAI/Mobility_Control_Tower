@@ -1,5 +1,5 @@
-select service_date, eligible_scheduled_trips, observed_matched_trips, trips_with_unknown_status
+select service_date, scheduled_trips, matched_realtime_trips, unknown_trips
 from {{ ref('realtime_coverage') }}
-where eligible_scheduled_trips != observed_matched_trips + trips_with_unknown_status
-   or observed_matched_trips > eligible_scheduled_trips
+where scheduled_trips != matched_realtime_trips + unknown_trips
+   or matched_realtime_trips > scheduled_trips
 

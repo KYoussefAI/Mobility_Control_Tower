@@ -18,7 +18,8 @@ unit_tests:
               'S1'::varchar as stop_id,
               1::integer as stop_sequence,
               0::integer as observed_delay,
-              'SCHEDULED'::varchar as schedule_relationship
+              'SCHEDULED'::varchar as schedule_relationship,
+              null::timestamptz as update_timestamp
       - input: ref('stg_trips')
         format: sql
         rows: |
@@ -59,7 +60,8 @@ unit_tests:
               'S1'::varchar as stop_id,
               test_case.stop_sequence::integer as stop_sequence,
               test_case.observed_delay::integer as observed_delay,
-              'SCHEDULED'::varchar as schedule_relationship
+              'SCHEDULED'::varchar as schedule_relationship,
+              null::timestamptz as update_timestamp
           from (
               values
                   ('missing', 1, null::integer),
@@ -96,8 +98,8 @@ unit_tests:
         - {entity_id: positive-edge, delay_seconds: 7200, has_known_delay: true, delay_quality_status: VALID}
         - {entity_id: positive-out, delay_seconds: 7201, has_known_delay: false, delay_quality_status: OUT_OF_RANGE}
 
-  - name: exact_duplicates_collapse_and_ambiguous_observations_are_excluded
-    description: Exact analytical duplicates produce one observation while any conflicting payload for a key excludes that key.
+  - name: exact_duplicates_collapse_and_ambiguous_observations_are_marked
+    description: Exact analytical duplicates produce one source-key row while conflicting payloads are explicitly marked and stripped of analytical values.
     model: int_delay_observations
     given:
       - input: ref('stg_realtime_updates')
@@ -113,7 +115,8 @@ unit_tests:
               test_case.stop_id::varchar as stop_id,
               test_case.stop_sequence::integer as stop_sequence,
               test_case.observed_delay::integer as observed_delay,
-              'SCHEDULED'::varchar as schedule_relationship
+              'SCHEDULED'::varchar as schedule_relationship,
+              null::timestamptz as update_timestamp
           from (
               values
                   ('snapshot-1', timestamptz '2026-01-01 12:00:00+00', 'exact', 'S1', 1, 120),
@@ -146,8 +149,10 @@ unit_tests:
     expect:
       format: dict
       rows:
-        - {entity_id: exact, stop_sequence: 1, delay_seconds: 120, is_on_time: true}
-        - {entity_id: unique, stop_sequence: 4, delay_seconds: 420, is_on_time: false}
+        - {entity_id: exact, stop_sequence: 1, delay_seconds: 120, source_key_status: UNAMBIGUOUS}
+        - {entity_id: stop-conflict, stop_sequence: 2, delay_seconds: null, source_key_status: AMBIGUOUS}
+        - {entity_id: delay-conflict, stop_sequence: 3, delay_seconds: null, source_key_status: AMBIGUOUS}
+        - {entity_id: unique, stop_sequence: 4, delay_seconds: 420, source_key_status: UNAMBIGUOUS}
 
   - name: on_time_window_is_inclusive
     description: The on-time window includes delays from -60 through +300 seconds and excludes adjacent values.
@@ -166,7 +171,8 @@ unit_tests:
               'S1'::varchar as stop_id,
               test_case.stop_sequence::integer as stop_sequence,
               test_case.observed_delay::integer as observed_delay,
-              'SCHEDULED'::varchar as schedule_relationship
+              'SCHEDULED'::varchar as schedule_relationship,
+              null::timestamptz as update_timestamp
           from (
               values
                   ('too-early', 1, -61),

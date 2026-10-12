@@ -3,9 +3,10 @@ select
     route_id,
     route_short_name,
     route_long_name,
-    count(*) as observed_stop_updates,
+    count(*) as observed_trip_stops,
+    count(*) as sample_size,
     case
-        when count(*) >= {{ var('min_reliable_sample_size') }} then 'RELIABLE'
+        when count(*) >= {{ var('min_sufficient_sample_size') }} then 'SUFFICIENT_SAMPLE'
         else 'LOW_SAMPLE'
     end as sample_size_status,
     count(distinct trip_id) as observed_trips,
@@ -14,6 +15,5 @@ select
     round(quantile_cont(delay_seconds, 0.90), 1) as p90_delay_seconds,
     count(*) filter (where is_on_time) as on_time_observations,
     round(100.0 * count(*) filter (where is_on_time) / count(*), 2) as on_time_percentage
-from {{ ref('int_delay_observations') }}
-where static_trip_match and has_known_delay
+from {{ ref('int_trip_stop_observations') }}
 group by 1, 2, 3, 4

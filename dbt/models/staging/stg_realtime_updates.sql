@@ -6,6 +6,7 @@ select
     nullif(cast(trip_id as varchar), '') as trip_id,
     nullif(cast(route_id as varchar), '') as route_id,
     cast(schedule_relationship as varchar) as schedule_relationship,
+    cast(update_timestamp as timestamptz) as update_timestamp,
     nullif(cast(stop_id as varchar), '') as stop_id,
     cast(stop_sequence as integer) as stop_sequence,
     cast(arrival_delay as integer) as arrival_delay,

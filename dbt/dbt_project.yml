@@ -14,7 +14,7 @@ vars:
   on_time_early_seconds: -60
   on_time_late_seconds: 300
   max_abs_delay_seconds: 7200
-  min_reliable_sample_size: 5
+  min_sufficient_sample_size: 30
   fresh_realtime_seconds: 90
   stale_realtime_seconds: 300
 

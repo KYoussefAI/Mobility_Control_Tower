@@ -9,6 +9,7 @@ description = "Public transport data engineering pipeline for GTFS and GTFS-Real
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
+  "altair>=6,<7",
   "duckdb>=1.1,<2",
   "gtfs-realtime-bindings>=1.0,<2",
   "pandas>=2.2,<3",

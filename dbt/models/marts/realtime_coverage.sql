@@ -10,16 +10,19 @@ scheduled as (
 ),
 observed as (
     select service_date, count(distinct trip_id) as observed_matched_trips
-    from {{ ref('int_delay_observations') }}
-    where static_trip_match
+    from {{ ref('int_trip_stop_observations') }}
     group by 1
 )
 select
     scheduled.service_date,
-    scheduled.eligible_scheduled_trips,
-    coalesce(observed.observed_matched_trips, 0) as observed_matched_trips,
-    scheduled.eligible_scheduled_trips - coalesce(observed.observed_matched_trips, 0) as trips_with_unknown_status,
-    round(100.0 * coalesce(observed.observed_matched_trips, 0) / nullif(scheduled.eligible_scheduled_trips, 0), 2) as coverage_percentage
+    scheduled.eligible_scheduled_trips as scheduled_trips,
+    coalesce(observed.observed_matched_trips, 0) as matched_realtime_trips,
+    scheduled.eligible_scheduled_trips - coalesce(observed.observed_matched_trips, 0) as unknown_trips,
+    round(
+        100.0 * coalesce(observed.observed_matched_trips, 0)
+        / nullif(scheduled.eligible_scheduled_trips, 0),
+        2
+    ) as coverage_percentage
 from scheduled
 left join observed using (service_date)
 

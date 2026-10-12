@@ -15,7 +15,7 @@ models:
       - name: service_date
         tests: [not_null]
   - name: int_delay_observations
-    description: Exact analytical Trip Update duplicates are collapsed and ambiguous keys are excluded before static schedule enrichment. Published delays beyond ±7200 seconds are retained as OUT_OF_RANGE but are not KPI-eligible.
+    description: One row per source snapshot/entity/stop key. Exact analytical duplicates collapse; conflicting payloads are marked AMBIGUOUS and never enter KPI models.
     columns:
       - name: snapshot_id
         tests: [not_null]
@@ -23,4 +23,17 @@ models:
         tests:
           - accepted_values:
               arguments:
-                values: [VALID, MISSING, OUT_OF_RANGE]
+                values: [VALID, MISSING, OUT_OF_RANGE, AMBIGUOUS_SOURCE]
+  - name: int_trip_stop_observations
+    description: One canonical KPI-eligible row per scheduled service-date, trip, and stop sequence, representing the latest valid published GTFS-Realtime delay.
+    columns:
+      - name: service_date
+        tests: [not_null]
+      - name: trip_id
+        tests: [not_null]
+      - name: stop_sequence
+        tests: [not_null]
+      - name: delay_seconds
+        tests: [not_null]
+      - name: snapshot_id
+        tests: [not_null]

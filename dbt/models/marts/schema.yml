@@ -26,7 +26,7 @@ models:
         tests:
           - accepted_values:
               arguments:
-                values: [RELIABLE, LOW_SAMPLE]
+                values: [SUFFICIENT_SAMPLE, LOW_SAMPLE]
   - name: hourly_delay_summary
     description: Network delay by scheduled service hour. Times after 24:00 wrap to their clock hour.
     columns:
@@ -39,16 +39,21 @@ models:
         tests:
           - accepted_values:
               arguments:
-                values: [RELIABLE, LOW_SAMPLE]
+                values: [SUFFICIENT_SAMPLE, LOW_SAMPLE]
   - name: network_on_time_performance
-    description: Daily OTP using matched observations with known delay only; unknown observations are excluded.
+    description: Daily OTP over canonical matched trip-stop publications with known, sane delays; unknown observations are excluded.
     columns:
       - name: service_date
         tests: [not_null, unique]
       - name: on_time_percentage
         tests: [not_null]
+      - name: sample_size_status
+        tests:
+          - accepted_values:
+              arguments:
+                values: [SUFFICIENT_SAMPLE, LOW_SAMPLE]
   - name: realtime_coverage
-    description: Share of eligible scheduled trips observed in Trip Updates on dates when at least one snapshot was collected.
+    description: Share of scheduled trips with at least one canonical valid realtime trip-stop on schedule-matchable collection dates.
     columns:
       - name: service_date
         tests: [not_null, unique]
@@ -62,3 +67,10 @@ models:
           - accepted_values:
               arguments:
                 values: [FRESH, DELAYED, STALE, UNKNOWN]
+  - name: data_coverage_summary
+    description: One-row disclosure of realtime history, schedule validity, canonical sample size, source exclusions, and rebuild time.
+    columns:
+      - name: realtime_snapshots
+        tests: [not_null]
+      - name: canonical_trip_stops
+        tests: [not_null]

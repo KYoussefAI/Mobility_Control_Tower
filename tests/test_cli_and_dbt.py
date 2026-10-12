@@ -57,7 +57,7 @@ def test_dbt_runner_passes_explicit_paths(tmp_path, monkeypatch) -> None:
     assert variables["static_path"] == static_run.resolve().as_posix()
     assert variables["on_time_late_seconds"] == 300
     assert variables["max_abs_delay_seconds"] == 7200
-    assert variables["min_reliable_sample_size"] == 5
+    assert variables["min_sufficient_sample_size"] == 30
     assert variables["fresh_realtime_seconds"] == 90
     assert environment["MCT_DBT_DATABASE_PATH"] == str(database)
     assert environment["MCT_DBT_TEMP_DIRECTORY"] == (tmp_path / "duckdb_tmp").resolve().as_posix()
@@ -88,7 +88,9 @@ def test_cli_dbt_build_uses_paris_date_when_start_date_is_missing(tmp_path, monk
 
     with duckdb.connect(str(db_path(tmp_path)), read_only=True) as connection:
         service_date = connection.execute("select distinct service_date from int_delay_observations").fetchone()[0]
+        canonical_count = connection.execute("select count(*) from int_trip_stop_observations").fetchone()[0]
     assert service_date.isoformat() == "2026-01-02"
+    assert canonical_count == 0
 
 
 def test_require_pass_raises_with_failed_names() -> None:
